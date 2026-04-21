@@ -35,7 +35,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // HTTP request logger
 
 // Serve static files from the uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadsDir = process.env.VERCEL 
+  ? path.join(process.cwd(), 'server', 'uploads') 
+  : path.join(__dirname, 'uploads');
+console.log(`📂 Serving static files from: ${uploadsDir}`);
+app.use('/uploads', express.static(uploadsDir));
 
 // Serverless database connection caching
 let cached = global.mongoose;
