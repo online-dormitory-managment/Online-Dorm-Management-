@@ -2,6 +2,9 @@
   "name": "online-dorm-management",
   "private": true,
   "description": "Monorepo scripts — server and client live in /server and /client",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "seed:students": "npm run seed:students --prefix server",
     "seed:students:merge": "npm run seed:students:merge --prefix server",
