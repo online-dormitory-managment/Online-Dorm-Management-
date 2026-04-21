@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "server/server.js": {
-      "includeFiles": "server/**",
-      "runtime": "@vercel/node"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
