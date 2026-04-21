@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 function ensureDir(dir) {
+  if (process.env.VERCEL) return;
   if (!fs.existsSync(dir)) {
     console.log('📂 Creating directory:', dir);
     fs.mkdirSync(dir, { recursive: true });
@@ -16,6 +17,9 @@ function safeUserId(userID) {
 function createSingleUpload(subDir) {
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
+      if (process.env.VERCEL) {
+        return cb(null, '/tmp');
+      }
       const dir = path.join('uploads', subDir, safeUserId(req.user?.userID));
       ensureDir(dir);
       cb(null, dir);

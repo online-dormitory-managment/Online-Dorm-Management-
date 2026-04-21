@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 function ensureDir(dir) {
+  if (process.env.VERCEL) return;
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -14,6 +15,9 @@ function safeUserId(userID) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    if (process.env.VERCEL) {
+      return cb(null, '/tmp');
+    }
     const baseDir = path.join('uploads', 'applications', safeUserId(req.user?.userID));
     const fieldDir = path.join(baseDir, file.fieldname);
     ensureDir(fieldDir);

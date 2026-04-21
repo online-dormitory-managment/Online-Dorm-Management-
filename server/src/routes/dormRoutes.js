@@ -13,12 +13,12 @@ const {
 } = require('../controllers/dormController');
 
 const uploadRoot = path.join(process.cwd(), 'uploads', 'dorm-applications');
-if (!fs.existsSync(uploadRoot)) {
+if (!process.env.VERCEL && !fs.existsSync(uploadRoot)) {
   fs.mkdirSync(uploadRoot, { recursive: true });
 }
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadRoot),
+  destination: (req, file, cb) => cb(null, process.env.VERCEL ? '/tmp' : uploadRoot),
   filename: (req, file, cb) => {
     const safe = String(file.originalname || 'file').replace(/[^\w.-]/g, '_');
     cb(null, `${Date.now()}-${safe}`);

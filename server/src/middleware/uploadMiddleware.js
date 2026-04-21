@@ -4,13 +4,13 @@ const fs = require('fs');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(process.cwd(), 'uploads/profiles');
-if (!fs.existsSync(uploadDir)) {
+if (!process.env.VERCEL && !fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/profiles');
+        cb(null, process.env.VERCEL ? '/tmp' : 'uploads/profiles');
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

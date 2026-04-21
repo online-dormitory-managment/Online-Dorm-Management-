@@ -5,13 +5,13 @@ const fs = require('fs');
 
 // Create uploads folder if not exists
 const uploadDir = 'uploads/kebele';
-if (!fs.existsSync(uploadDir)) {
+if (!process.env.VERCEL && !fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    cb(null, process.env.VERCEL ? '/tmp' : uploadDir);
   },
   filename: (req, file, cb) => {
   const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
