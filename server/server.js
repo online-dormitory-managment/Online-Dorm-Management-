@@ -107,9 +107,20 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/admin/dorm', require('./src/routes/adminDormRoutes'));
+app.use('/api/admin-dorm', require('./src/routes/adminDormRoutes'));
+app.use('/api/dorm', require('./src/routes/dormRoutes'));
 app.use('/api/events', require('./src/routes/events'));
 app.use('/api/notices', require('./src/routes/notices'));
+app.use('/api/notifications', require('./src/routes/notificationRoutes'));
+app.use('/api/lost-found', require('./src/routes/lostFoundRoutes'));
+app.use('/api/exit-clearance', require('./src/routes/exitClearanceRoutes'));
+app.use('/api/complaints', require('./src/routes/complaintRoutes'));
+app.use('/api/maintenance', require('./src/routes/maintenanceRoutes'));
+app.use('/api/marketplace', require('./src/routes/marketplaceRoutes'));
+app.use('/api/orders', require('./src/routes/orderRoutes'));
+app.use('/api/proctor', require('./src/routes/proctorRoutes'));
+app.use('/api/payment', require('./src/routes/paymentRoutes'));
+app.use('/api/operational-reports', require('./src/routes/reportRoutes'));
 app.use('/api/role-applications', require('./src/routes/roleApplicationRoutes'));
 
 // Welcome route
