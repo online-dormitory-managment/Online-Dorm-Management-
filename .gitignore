@@ -35,10 +35,6 @@ server/error_log.txt
 server/uploads/
 uploads/
 client/src/assets/receipts/
-*.png
-*.jpg
-*.jpeg
-*.pdf
 
 # Scratch / Temp
 server/scratch/
