@@ -37,18 +37,64 @@ app.use(morgan('dev')); // HTTP request logger
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database connection
+// Serverless database connection caching
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/dormitory_db';
 
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log('✅ MongoDB connected successfully'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
+async function connectDB() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
+      console.log('✅ MongoDB newly connected');
+      return mongooseInstance;
+    });
+  }
+  
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error('❌ MongoDB connection error:', e);
+    throw e;
+  }
+
+  return cached.conn;
+}
+
+// Immediately attempt a connection on startup (useful for non-serverless dev)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  connectDB().catch(console.error);
+}
+
+// Middleware to Ensure DB is connected for every request on Vercel
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('🚨 DB Connection Middleware Error:', err);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Database connection failed', 
+      error: err.message 
+    });
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
