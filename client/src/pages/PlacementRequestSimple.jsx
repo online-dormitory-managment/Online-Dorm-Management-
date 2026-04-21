@@ -450,12 +450,22 @@ export default function PlacementRequestSimple() {
       navigate('/student-portal');
     } catch (err) {
       toast.dismiss(loadingToast);
-      const msg =
-        (typeof err === 'string' && err) ||
-        err?.message ||
-        err?.error ||
-        err?.response?.data?.message ||
-        'Failed to submit. Please check your files and try again.';
+      let msg = 'Failed to submit. Please check your files and try again.';
+      
+      if (typeof err === 'string') {
+        msg = err;
+      } else if (err?.response?.status === 504) {
+        msg = 'The server took too long to process your request. Please check your internet connection or try again. Your application might still have been processed.';
+      } else if (err?.response?.data?.message) {
+        msg = typeof err.response.data.message === 'object' 
+          ? (err.response.data.message.message || JSON.stringify(err.response.data.message))
+          : err.response.data.message;
+      } else if (err?.message) {
+        msg = err.message;
+      } else if (err?.error) {
+        msg = typeof err.error === 'object' ? JSON.stringify(err.error) : err.error;
+      }
+
       setSubmitError(msg);
       toast.error(msg);
     } finally {

@@ -1,7 +1,21 @@
 // src/controllers/dormController.js
 const path = require('path');
-const { createWorker } = require('tesseract.js');
+const { createWorker, createScheduler } = require('tesseract.js');
 const { initializeChapaPayment } = require('../utils/chapa');
+
+// --- OCR Optimization: Shared Scheduler ---
+let ocrScheduler = null;
+async function getOcrScheduler() {
+  if (ocrScheduler) return ocrScheduler;
+  ocrScheduler = createScheduler();
+  // Create 2 workers for parallel front/back processing
+  const worker1 = await createWorker('eng');
+  const worker2 = await createWorker('eng');
+  ocrScheduler.addWorker(worker1);
+  ocrScheduler.addWorker(worker2);
+  console.log('✅ OCR Scheduler initialized with 2 workers');
+  return ocrScheduler;
+}
 
 const DormApplication = require('../models/DormApplication');
 const Student = require('../models/Student');
@@ -23,13 +37,13 @@ const {
 
 /** OCR: English only for reliability (FYDA English address lines; Amharic ignored for matching). */
 async function tryOcrText(filePath) {
-  let worker;
   try {
-    worker = await createWorker('eng');
-    const { data } = await worker.recognize(filePath);
+    const scheduler = await getOcrScheduler();
+    const { data } = await scheduler.addJob('recognize', filePath);
     return String(data?.text || '');
-  } finally {
-    if (worker) await worker.terminate().catch(() => {});
+  } catch (err) {
+    console.error('OCR Error for', filePath, ':', err.message);
+    return '';
   }
 }
 
@@ -113,9 +127,11 @@ const submitApplication = async (req, res) => {
     const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // === OCR + Name Check (your existing logic) ===
-    let frontText = await tryOcrText(path.resolve(frontFile.path));
-    let backText = await tryOcrText(path.resolve(backFile.path));
+    // === OCR + Name Check (Parallelized for speed) ===
+    const [frontText, backText] = await Promise.all([
+      tryOcrText(path.resolve(frontFile.path)),
+      tryOcrText(path.resolve(backFile.path))
+    ]);
 
     const nameOk = nameLikelyOnId(student.fullName, frontText);
     if (!nameOk) {
