@@ -20,7 +20,27 @@ const PORT = process.env.PORT || 5000;
 
 // CORS Configuration
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:5000'
+    ];
+    
+    // Allow requests with no origin (like mobile apps/curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is local or a vercel subdomain
+    const isLocal = allowedOrigins.includes(origin);
+    const isVercel = origin.endsWith('.vercel.app');
+    
+    if (isLocal || isVercel) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],

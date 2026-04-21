@@ -13,8 +13,8 @@ const initializeChapaPayment = async (student, amount = 1500) => {
     tx_ref: tx_ref,
     title: "AAU Dormitory Fee",
     description: `Dorm fee for ${student.fullName}`,
-    callback_url: "https://terrilyn-comet-lyric.ngrok-free.dev/api/payment/webhook", // your current ngrok URL
-    return_url: "http://localhost:5173/placement-request?payment=success",
+    callback_url: process.env.CHAPA_CALLBACK_URL || "http://localhost:5000/api/payment/webhook",
+    return_url: process.env.CHAPA_RETURN_URL || "http://localhost:5173/placement-request?payment=success",
   };
 
   const response = await axios.post(
