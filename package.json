@@ -16,5 +16,8 @@
   "workspaces": [
     "client",
     "server"
-  ]
+  ],
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.54.0"
+  }
 }
