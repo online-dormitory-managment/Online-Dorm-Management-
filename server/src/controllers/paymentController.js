@@ -13,10 +13,12 @@ const CHAPA_CALLBACK_URL = (process.env.CHAPA_CALLBACK_URL || '').trim();
 const CHAPA_RETURN_URL = (process.env.CHAPA_RETURN_URL || process.env.FRONTEND_URL + '/placement-request' || '').trim();
 
 const logToFile = (msg) => {
-  try {
-    const logPath = path.join(process.cwd(), 'server_debug.log');
-    fs.appendFileSync(logPath, `[PAYMENT_DEBUG] [${new Date().toISOString()}] ${msg}\n`);
-  } catch (e) {}
+  if (!process.env.VERCEL) {
+    try {
+      const logPath = path.join(process.cwd(), 'server_debug.log');
+      fs.appendFileSync(logPath, `[PAYMENT_DEBUG] [${new Date().toISOString()}] ${msg}\n`);
+    } catch (e) {}
+  }
 };
 
 /**

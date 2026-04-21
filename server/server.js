@@ -38,7 +38,7 @@ app.use(morgan('dev')); // HTTP request logger
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dormitory_db';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/dormitory_db';
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,

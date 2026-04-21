@@ -54,11 +54,15 @@ const protect = async (req, res, next) => {
       };
 
       console.log('🚀 Auth SUCCESS for:', user.userID);
-      fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), `✅ [${new Date().toISOString()}] Auth SUCCESS: ${user.userID}\n`);
+      if (!process.env.VERCEL) {
+        fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), `✅ [${new Date().toISOString()}] Auth SUCCESS: ${user.userID}\n`);
+      }
       next();
     } catch (error) {
       console.log('❌ Auth middleware ERROR:', error.message);
-      fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), `❌ [${new Date().toISOString()}] Auth ERROR: ${error.message}\n`);
+      if (!process.env.VERCEL) {
+        fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), `❌ [${new Date().toISOString()}] Auth ERROR: ${error.message}\n`);
+      }
       return res.status(401).json({
         success: false,
         message: 'Not authorized, invalid token'
@@ -66,7 +70,9 @@ const protect = async (req, res, next) => {
     }
   } else {
     console.log('🚫 No Authorization header found for:', req.originalUrl);
-    fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), `🚫 [${new Date().toISOString()}] NO AUTH HEADER: ${req.originalUrl}\n`);
+    if (!process.env.VERCEL) {
+      fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), `🚫 [${new Date().toISOString()}] NO AUTH HEADER: ${req.originalUrl}\n`);
+    }
     return res.status(401).json({
       success: false,
       message: 'Not authorized, no token'

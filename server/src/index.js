@@ -16,9 +16,11 @@ app.use('/api', (req, res, next) => {
   const auth = req.headers.authorization;
   const tokenHint = auth ? (auth.substring(0, 15) + '...') : 'MISSING';
   const logMsg = `📡 [${new Date().toISOString()}] ${req.method} ${req.url} - Auth: ${tokenHint}\n`;
-  try {
-    fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), logMsg);
-  } catch (e) {}
+  if (!process.env.VERCEL) {
+    try {
+      fs.appendFileSync(path.join(process.cwd(), 'server_debug.log'), logMsg);
+    } catch (e) {}
+  }
   console.log(logMsg.trim());
   next();
 });
@@ -211,12 +213,12 @@ app.use((err, req, res, next) => {
   console.error('❌ Global Error Handler:', err);
   
   // Log to file for environment without console access
-  try {
-    const errorLog = `${new Date().toISOString()} - ${req.method} ${req.url}\n${err.stack}\n\n`;
-    fs.appendFileSync(path.join(process.cwd(), 'server_error_log.txt'), errorLog);
-  } catch (e) {
-    console.error('Failed to write to error log file', e);
-  }
+    if (!process.env.VERCEL) {
+      try {
+        const errorLog = `${new Date().toISOString()} - ${req.method} ${req.url}\n${err.stack}\n\n`;
+        fs.appendFileSync(path.join(process.cwd(), 'server_error_log.txt'), errorLog);
+      } catch (e) {}
+    }
 
   res.status(err.status || 500).json({
     success: false,
@@ -278,13 +280,15 @@ setInterval(async () => {
   }
 }, 10000); // Check every 10 seconds for precise Addis assignment
 
-app.listen(PORT, () => {
-  console.log(`\n✅ Server running on port ${PORT}`);
-  console.log('\nTest endpoints:');
-  console.log('  GET  /');
-  console.log('  GET  /api/test-server');
-  console.log('  GET  /api/students/debug');
-  console.log('  GET  /api/students/dashboard');
-  console.log('  POST /api/auth/login (local fix ready)');
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n✅ Server running on port ${PORT}`);
+    console.log('\nTest endpoints:');
+    console.log('  GET  /');
+    console.log('  GET  /api/test-server');
+    console.log('  GET  /api/students/debug');
+    console.log('  GET  /api/students/dashboard');
+    console.log('  POST /api/auth/login (local fix ready)');
+  });
+}
 // End of file (payment integration check)

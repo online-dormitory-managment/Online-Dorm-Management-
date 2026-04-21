@@ -73,10 +73,9 @@ const loginUser = async (req, res) => {
     if (!isPasswordValid) {
       console.log('❌ Invalid password for user:', userId);
       try {
-        const fs = require('fs');
-        const path = require('path');
-        const logMsg = `${new Date().toISOString()} - Login FAIL: ${userId} - StoredHash: ${user.password.substring(0, 10)}...\n`;
-        fs.appendFileSync(path.join(process.cwd(), 'login_debug_log.txt'), logMsg);
+        if (!process.env.VERCEL) {
+          fs.appendFileSync(path.join(process.cwd(), 'login_debug_log.txt'), logMsg);
+        }
       } catch (e) {}
       return res.status(401).json({
         success: false,
@@ -107,12 +106,14 @@ const loginUser = async (req, res) => {
     console.log('✅ Login successful:', user.userID, 'Role:', user.role);
 
     // Log login attempt to file for inspection
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const logMsg = `${new Date().toISOString()} - Login: ${user.userID} - Match: ${isPasswordValid}\n`;
-      fs.appendFileSync(path.join(process.cwd(), 'login_debug_log.txt'), logMsg);
-    } catch (e) {}
+    if (!process.env.VERCEL) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const logMsg = `${new Date().toISOString()} - Login: ${user.userID} - Match: ${isPasswordValid}\n`;
+        fs.appendFileSync(path.join(process.cwd(), 'login_debug_log.txt'), logMsg);
+      } catch (e) {}
+    }
 
     return res.json({
       success: true,
