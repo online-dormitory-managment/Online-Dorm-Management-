@@ -8,12 +8,14 @@ let ocrScheduler = null;
 async function getOcrScheduler() {
   if (ocrScheduler) return ocrScheduler;
   ocrScheduler = createScheduler();
-  // Create 2 workers for parallel front/back processing
-  const worker1 = await createWorker('eng');
-  const worker2 = await createWorker('eng');
+  // Create 2 workers in parallel for speed
+  const [worker1, worker2] = await Promise.all([
+    createWorker('eng'),
+    createWorker('eng')
+  ]);
   ocrScheduler.addWorker(worker1);
   ocrScheduler.addWorker(worker2);
-  console.log('✅ OCR Scheduler initialized with 2 workers');
+  console.log('✅ OCR Scheduler initialized with 2 workers (parallel boot)');
   return ocrScheduler;
 }
 

@@ -451,23 +451,35 @@ export default function PlacementRequestSimple() {
     } catch (err) {
       toast.dismiss(loadingToast);
       let msg = 'Failed to submit. Please check your files and try again.';
-      
-      if (typeof err === 'string') {
-        msg = err;
-      } else if (err?.response?.status === 504) {
-        msg = 'The server took too long to process your request. Please check your internet connection or try again. Your application might still have been processed.';
-      } else if (err?.response?.data?.message) {
-        msg = typeof err.response.data.message === 'object' 
-          ? (err.response.data.message.message || JSON.stringify(err.response.data.message))
-          : err.response.data.message;
-      } else if (err?.message) {
-        msg = err.message;
-      } else if (err?.error) {
-        msg = typeof err.error === 'object' ? JSON.stringify(err.error) : err.error;
+
+      try {
+        if (typeof err === 'string') {
+          msg = err;
+        } else if (err?.response?.status === 504) {
+          msg = 'Server Timeout: Processing your application exceeded the time limit. Your application might still have been uploaded, but the response was lost. Please check your portal in a moment.';
+        } else {
+          // Robustly extract message from any object shape
+          const rawMessage = 
+            err?.response?.data?.message || 
+            err?.response?.data?.error || 
+            err?.message || 
+            err?.error ||
+            (err && typeof err === 'object' && !Array.isArray(err) ? (err.message || err.error || JSON.stringify(err)) : null);
+
+          if (rawMessage) {
+            msg = typeof rawMessage === 'object' 
+              ? (rawMessage.message || rawMessage.error || JSON.stringify(rawMessage))
+              : String(rawMessage);
+          }
+        }
+      } catch (innerErr) {
+        console.error('Error during error parsing:', innerErr);
       }
 
-      setSubmitError(msg);
-      toast.error(msg);
+      // FINAL SAFETY CHECK: Force to string before passing to React
+      const finalMsg = String(msg).slice(0, 500); 
+      setSubmitError(finalMsg);
+      toast.error(finalMsg);
     } finally {
       setSubmitting(false);
     }
