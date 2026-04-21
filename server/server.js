@@ -7,13 +7,13 @@ const path = require('path');
 require('dotenv').config();
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const studentRoutes = require('./routes/student');
-const adminRoutes = require('./routes/admin');
+const authRoutes = require('./src/routes/authRoutes');
+const studentRoutes = require('./src/routes/studentRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
 
 // Import models
-const Student = require('./models/Student');
-const User = require('./models/User');
+const Student = require('./src/models/Student');
+const User = require('./src/models/User');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -64,8 +64,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/dorm', require('./src/routes/adminDormRoutes'));
-app.use('/api/events', require('./routes/events'));
-app.use('/api/notices', require('./routes/notices'));
+app.use('/api/events', require('./src/routes/events'));
+app.use('/api/notices', require('./src/routes/notices'));
 app.use('/api/role-applications', require('./src/routes/roleApplicationRoutes'));
 
 // Welcome route
