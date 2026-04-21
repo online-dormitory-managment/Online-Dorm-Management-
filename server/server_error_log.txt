@@ -1,0 +1,26 @@
+2026-03-26T23:30:30.904Z - POST /api/lost-found
+Error: Only images (jpeg, jpg, png) and PDF allowed
+    at fileFilter (C:\OnlineDormManagement\server\src\config\singleUpload.js:34:10)
+    at wrappedFileFilter (C:\OnlineDormManagement\server\node_modules\multer\index.js:45:7)
+    at Multipart.<anonymous> (C:\OnlineDormManagement\server\node_modules\multer\lib\make-middleware.js:183:7)
+    at Multipart.emit (node:events:518:28)
+    at HeaderParser.cb (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:358:14)
+    at HeaderParser.push (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:162:20)
+    at SBMH.ssCb [as _cb] (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:394:37)
+    at feed (C:\OnlineDormManagement\server\node_modules\streamsearch\lib\sbmh.js:219:14)
+    at SBMH.push (C:\OnlineDormManagement\server\node_modules\streamsearch\lib\sbmh.js:104:16)
+    at Multipart._write (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:567:19)
+
+2026-03-26T23:31:14.428Z - POST /api/lost-found
+Error: Only images (jpeg, jpg, png) and PDF allowed
+    at fileFilter (C:\OnlineDormManagement\server\src\config\singleUpload.js:34:10)
+    at wrappedFileFilter (C:\OnlineDormManagement\server\node_modules\multer\index.js:45:7)
+    at Multipart.<anonymous> (C:\OnlineDormManagement\server\node_modules\multer\lib\make-middleware.js:183:7)
+    at Multipart.emit (node:events:518:28)
+    at HeaderParser.cb (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:358:14)
+    at HeaderParser.push (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:162:20)
+    at SBMH.ssCb [as _cb] (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:394:37)
+    at feed (C:\OnlineDormManagement\server\node_modules\streamsearch\lib\sbmh.js:219:14)
+    at SBMH.push (C:\OnlineDormManagement\server\node_modules\streamsearch\lib\sbmh.js:104:16)
+    at Multipart._write (C:\OnlineDormManagement\server\node_modules\busboy\lib\types\multipart.js:567:19)
+

@@ -1,0 +1,1093 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import DashboardLayout from '../components/dashboard/Students/DashboardLayout';
+import { dormApi } from '../api/dormApi';
+import studentApi from '../api/studentApi';
+import paymentApi from '../api/paymentApi';
+import { saveDraft, loadDraft, clearDraft } from '../utils/draftStorage';
+import toast from 'react-hot-toast';
+import {
+  FaBuilding,
+  FaIdCard,
+  FaMapMarkerAlt,
+  FaUpload,
+  FaCheckCircle,
+  FaCreditCard,
+  FaUserGraduate,
+  FaUniversity,
+  FaCalendarAlt,
+  FaVenusMars,
+  FaFileAlt,
+  FaShieldAlt,
+  FaArrowRight,
+  FaSpinner,
+  FaImage,
+  FaCamera,
+  FaFilePdf,
+  FaInfoCircle,
+  FaChevronRight,
+  FaTimes,
+  FaMobileAlt,
+  FaLock,
+  FaArrowLeft
+} from 'react-icons/fa';
+
+/** Outer Addis sub-cities: no extra letter (aligned with server `fydaAddressMatch`). */
+function impliesFarAddisFromCity(city) {
+  const v = String(city || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  const hints = [
+    'akaki',
+    'kality',
+    'kaliti',
+    'nifas',
+    'nifsilk',
+    'nifassilk',
+    'kolfe',
+    'keranio',
+    'gullele',
+    'yeka',
+    'burayu',
+    'legetafo',
+    'legeta',
+    'sebeta',
+    'sululta',
+    'holeta',
+    'sendafa',
+    'teji',
+    'ayertena',
+    'kotebe',
+    'saris',
+    'megenagna',
+    'lideta',
+    'lafto',
+  ];
+  return hints.some((k) => v.includes(k));
+}
+
+export default function PlacementRequestSimple() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [existingApp, setExistingApp] = useState(null);
+  const [submitError, setSubmitError] = useState('');
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  const [city, setCity] = useState('');
+  const [fydaFront, setFydaFront] = useState(null);
+  const [fydaBack, setFydaBack] = useState(null);
+  const [addisLetter, setAddisLetter] = useState(null);
+  const [paymentReceipt, setPaymentReceipt] = useState(null);
+  const [isStaffRelated, setIsStaffRelated] = useState(false);
+  const [isSpecialNeed, setIsSpecialNeed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [previews, setPreviews] = useState({
+    fydaFront: null,
+    fydaBack: null,
+    addisLetter: null,
+    paymentReceipt: null
+  });
+  const [isPaid, setIsPaid] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'error', 'verifying'
+  const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
+  const [showAddisWaitModal, setShowAddisWaitModal] = useState(false);
+  const [hasScheduledNotice, setHasScheduledNotice] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  const isAddis = useMemo(() => {
+    const v = String(city || '').toLowerCase();
+    return v.includes('addis') || v.includes('sheger') || v.includes('finfinne');
+  }, [city]);
+
+  const isLikelyFarAddis = useMemo(() => impliesFarAddisFromCity(city), [city]);
+  /** Addis students now have no letter input and must wait. */
+  const needsCentralAddisLetter = false; // "remove the input to upload an addition letter"
+
+  const studentTypeInfo = useMemo(() => {
+    const s = profile?.student || {};
+    const rawType = s.studentType || s.sponsorship || '';
+    const t = String(rawType).toLowerCase();
+
+    if (t.includes('self')) {
+      return { label: 'Self Sponsored', isSelfSponsored: true };
+    }
+    if (t.includes('government')) {
+      return { label: 'Government Sponsorship', isSelfSponsored: false };
+    }
+    if (t.includes('special')) {
+      return { label: 'Special Needs', isSelfSponsored: false };
+    }
+    if (t.includes('staff')) {
+      return { label: 'Staff Relatives', isSelfSponsored: false };
+    }
+    return { label: rawType || 'Not Set', isSelfSponsored: false };
+  }, [profile]);
+
+  // Persistence: Save draft whenever text fields change, BUT ONLY after initial load
+  useEffect(() => {
+    if (draftLoaded) {
+      saveDraft({ city, isStaffRelated, isSpecialNeed, notes: existingApp?.notes }, {
+        fydaFront, fydaBack, addisLetter, paymentReceipt
+      });
+    }
+  }, [city, isStaffRelated, isSpecialNeed, fydaFront, fydaBack, addisLetter, paymentReceipt, draftLoaded]);
+
+  // Effect 1: Load Profile, Existing Application, and Draft
+  useEffect(() => {
+    (async () => {
+      try {
+        // Load Draft first
+        const draft = await loadDraft();
+        console.log('Loading Draft on Mount:', draft);
+        
+        if (draft.city) setCity(draft.city);
+        if (draft.isStaffRelated !== undefined) setIsStaffRelated(draft.isStaffRelated);
+        if (draft.isSpecialNeed !== undefined) setIsSpecialNeed(draft.isSpecialNeed);
+        
+        if (draft.files) {
+          const newPreviews = {};
+          if (draft.files.fydaFront) {
+            setFydaFront(draft.files.fydaFront);
+            newPreviews.fydaFront = URL.createObjectURL(draft.files.fydaFront);
+          }
+          if (draft.files.fydaBack) {
+            setFydaBack(draft.files.fydaBack);
+            newPreviews.fydaBack = URL.createObjectURL(draft.files.fydaBack);
+          }
+          if (draft.files.addisLetter) {
+            setAddisLetter(draft.files.addisLetter);
+            newPreviews.addisLetter = URL.createObjectURL(draft.files.addisLetter);
+          }
+          if (draft.files.paymentReceipt) {
+            setPaymentReceipt(draft.files.paymentReceipt);
+            newPreviews.paymentReceipt = URL.createObjectURL(draft.files.paymentReceipt);
+          }
+          setPreviews(prev => ({ ...prev, ...newPreviews }));
+        }
+
+        // Signal that loading is done so we can start saving changes
+        setDraftLoaded(true);
+
+        const res = await studentApi.getDashboard();
+        if (res?.success) {
+          setProfile(res);
+          // Only overwrite text fields if not already loaded from draft
+          if (res.student && !draft.city) {
+            setIsStaffRelated(!!res.student.isStaffRelated);
+            setIsSpecialNeed(!!res.student.isSpecialNeed);
+          }
+        } else {
+          throw new Error(res?.message || 'Failed to load dashboard');
+        }
+        const app = await dormApi.getMyApplication();
+        setExistingApp(app);
+
+        if (app?.paymentStatus === 'Verified' || app?.paymentStatus === 'Paid') {
+          setIsPaid(true);
+        }
+      } catch (err) {
+        console.error(err);
+        if (err?.status === 401 || err?.message?.includes('Unauthorized')) {
+          setSubmitError('Your session has expired. Please log out and log in again to load your profile data.');
+        } else {
+          toast.error('Failed to load student profile');
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Effect for Timer Countdown (Addis Wait)
+  useEffect(() => {
+    if (existingApp?.status === 'Waiting' && existingApp?.scheduledReleaseAt) {
+      const interval = setInterval(() => {
+        const target = new Date(existingApp.scheduledReleaseAt).getTime();
+        const now = new Date().getTime();
+        const diff = target - now;
+
+        if (diff <= 0) {
+          setTimeLeft(null);
+          clearInterval(interval);
+          // Try to refresh once to see if assigned
+          dormApi.getMyApplication().then(setExistingApp);
+        } else {
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setTimeLeft(null);
+    }
+  }, [existingApp]);
+
+  // Effect for Independent Payment Verification
+  useEffect(() => {
+    // Robust detection: URL Params -> LocalStorage Fallback -> Window Location
+    const params = new URLSearchParams(location.search || window.location.search);
+    const searchTxRef = params.get('tx_ref') || 
+                        params.get('trx_ref') || 
+                        params.get('transaction_id') ||
+                        params.get('reference') ||
+                        localStorage.getItem('pending_chapa_tx_ref');
+    
+    // Trigger verification if any transaction reference is detected
+    if (searchTxRef && paymentStatus !== 'verifying' && !isPaid) {
+      console.log('Verification trigger initiated for:', searchTxRef);
+      // Show immediate feedback even in toast
+      const verifToast = toast.loading('Detecting payment. Verifying with Chapa...');
+      (async () => {
+        setPaymentStatus('verifying');
+        try {
+          const verifyRes = await paymentApi.verify(searchTxRef);
+          if (verifyRes.success) {
+            setPaymentStatus('success');
+            setIsPaid(true);
+            
+            // Try to refresh application status if authenticated
+            try {
+              const updatedApp = await dormApi.getMyApplication();
+              setExistingApp(updatedApp);
+            } catch (e) {
+              console.log('Could not refresh app after payment (likely 401)');
+            }
+            
+            // Clear search params and fallback to prevent duplicate triggers
+            toast.success('Payment verified!', { id: verifToast });
+            localStorage.removeItem('pending_chapa_tx_ref');
+            setSearchParams({}, { replace: true });
+          } else {
+            toast.error(verifyRes.message || 'Verification failed', { id: verifToast });
+            setPaymentStatus('error');
+            setPaymentErrorMessage(verifyRes.message || 'Verification failed');
+          }
+        } catch (vErr) {
+          console.error('Verification error:', vErr);
+          toast.error('Verification failed', { id: verifToast });
+          setPaymentStatus('error');
+          setPaymentErrorMessage('Verification failed. If you already paid, please contact support.');
+        }
+      })();
+    }
+  }, [location.search, isPaid, paymentStatus, setSearchParams, loading, studentTypeInfo.isSelfSponsored]);
+
+  const generateMockReceipt = async () => {
+    // Generate a simple digital receipt image using Canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 600;
+    const ctx = canvas.getContext('2d');
+    
+    // Background
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 400, 600);
+    
+    // Header
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillRect(0, 0, 400, 80);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('DIGITAL RECEIPT', 90, 50);
+    
+    // Content
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '16px Arial';
+    ctx.fillText(`Date: ${new Date().toLocaleDateString()}`, 40, 120);
+    ctx.fillText(`Student: ${profile?.student?.fullName || 'Student'}`, 40, 150);
+    ctx.fillText(`Amount: 1,500.00 ETB`, 40, 180);
+    ctx.fillText(`Transaction ID: CHAPA-${Math.random().toString(36).substr(2, 9).toUpperCase()}`, 40, 210);
+    ctx.fillText(`Status: SUCCESSFUL`, 40, 240);
+    
+    // Mock Seal
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(300, 500, 50, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('VERIFIED', 270, 505);
+    
+    return new Promise(resolve => {
+      canvas.toBlob(blob => {
+        const file = new File([blob], "digital-receipt.png", { type: "image/png" });
+        resolve(file);
+      }, 'image/png');
+    });
+  };
+
+  const handleChapaPayment = async () => {
+    try {
+      setPaymentLoading(true);
+      const res = await paymentApi.initialize({ 
+        amount: 1500,
+        currency: 'ETB'
+      });
+      
+      if (res.success && res.checkout_url) {
+        toast.loading('Redirecting to Chapa...');
+        
+        // CRITICAL FALLBACK: Save tx_ref to localStorage in case redirect loses parameters
+        if (res.tx_ref) {
+          localStorage.setItem('pending_chapa_tx_ref', res.tx_ref);
+        }
+        
+        window.location.href = res.checkout_url;
+      } else {
+        throw new Error('Could not get Chapa checkout URL');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Payment initialization failed');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleCheckStatus = async () => {
+    try {
+      setPaymentLoading(true);
+      setPaymentStatus('verifying');
+      const res = await paymentApi.checkStatus();
+      
+      if (res.success) {
+        setPaymentStatus('success');
+        setIsPaid(true);
+        toast.success(res.message || 'Payment successfully verified!');
+        // Refresh application data
+        const updatedApp = await dormApi.getMyApplication();
+        setExistingApp(updatedApp);
+      } else {
+        throw new Error(res.message || 'No successful payment found');
+      }
+    } catch (err) {
+      console.error(err);
+      setPaymentStatus(null);
+      toast.error(err.message || 'Could not verify payment. Please try again.');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleFileChange = (e, setter, previewKey) => {
+    const file = e.target.files?.[0] || null;
+    setter(file);
+    
+    if (file && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviews(prev => ({ ...prev, [previewKey]: url }));
+    } else {
+      setPreviews(prev => ({ ...prev, [previewKey]: null }));
+    }
+  };
+
+  const submit = async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    setSubmitError('');
+    if (!city.trim()) return toast.error('City is required');
+    if (!fydaFront || !fydaBack) return toast.error('FYDA front and back images are required');
+    if (fydaFront && !String(fydaFront.type || '').startsWith('image/')) {
+      return toast.error('FYDA front must be an image (JPG/PNG). PDFs are not allowed.');
+    }
+    if (!fydaBack || !String(fydaBack.type || '').startsWith('image/')) {
+      return toast.error('FYDA back must be an image (JPG/PNG). PDFs are not allowed.');
+    }
+
+    // Addis letter: server validates after OCR (central Addis vs outskirts on ID text).
+    // Note: Letter requirement is bypassed for automated 5-min test on backend too.
+    if (studentTypeInfo.isSelfSponsored && !isPaid && !paymentReceipt) return toast.error('Payment is required for self-sponsored students');
+
+    setSubmitting(true);
+    const loadingToast = toast.loading(isAddis ? 'Preparing your Addis Ababa application...' : 'Submitting placement request...');
+    try {
+      const fd = new FormData();
+      fd.append('city', city.trim());
+      fd.append('isStaffRelated', isStaffRelated);
+      fd.append('isSpecialNeed', isSpecialNeed);
+      fd.append('fydaFront', fydaFront);
+      fd.append('fydaBack', fydaBack);
+      if (addisLetter) fd.append('addisLetter', addisLetter);
+      if (studentTypeInfo.isSelfSponsored && paymentReceipt) fd.append('paymentReceipt', paymentReceipt);
+
+      const res = await dormApi.submitApplication(fd);
+      toast.dismiss(loadingToast);
+
+      const status = res?.application?.status;
+
+      if (status === 'Waiting' || isAddis) {
+        // Addis Ababa Special Logic - Show Modal after actual submission
+        if (!hasScheduledNotice) {
+          setShowAddisWaitModal(true);
+          setHasScheduledNotice(true);
+          
+          studentApi.scheduleNotification({
+            type: 'DormApplication',
+            title: 'Apply for Dorm Placement',
+            message: 'It has been 5 minutes since your initial request. Students from Addis Ababa can now proceed with their dorm applications.',
+            scheduledAt: new Date(Date.now() + 300000)
+          }).catch(err => console.error('Failed to schedule notification:', err));
+        } else {
+          setShowAddisWaitModal(true);
+        }
+        await clearDraft();
+        return; 
+      }
+
+      if (status === 'Assigned') {
+        toast.success('Success! You have been assigned a dorm room.');
+      } else {
+        toast.success(res?.message || 'Submitted successfully.');
+      }
+      await clearDraft();
+      navigate('/student-portal');
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      const msg =
+        (typeof err === 'string' && err) ||
+        err?.message ||
+        err?.error ||
+        err?.response?.data?.message ||
+        'Failed to submit. Please check your files and try again.';
+      setSubmitError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-center">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            </div>
+            <h3 className="text-lg font-semibold text-slate-800">Loading your profile...</h3>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const student = profile?.student || {};
+  const account = dormApi.getUniversityAccount();
+  const amount = 1500;
+
+  return (
+    <DashboardLayout>
+      <div className="flex min-h-screen">
+        {/* Left Side - Form */}
+        <div className="flex-1 overflow-y-auto px-6 py-8 lg:px-12">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 text-sm text-blue-600 mb-2">
+              <FaUniversity className="w-4 h-4" />
+              <span>Addis Ababa University</span>
+            </div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Room Placement Request</h1>
+            <p className="text-slate-500">Complete the form below to apply for on-campus housing</p>
+          </div>
+
+          {/* Profile Summary Card */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6 border border-blue-100">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200">
+                <FaUserGraduate className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-slate-800">Your Information</h2>
+                <p className="text-sm text-slate-600 mb-4">Auto-filled from your profile</p>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-blue-100">
+                    <p className="text-xs text-blue-600 mb-1">Department</p>
+                    <p className="font-semibold text-slate-800 truncate">{student.department || 'N/A'}</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-blue-100">
+                    <p className="text-xs text-blue-600 mb-1">Year</p>
+                    <p className="font-semibold text-slate-800">{student.year || 'N/A'}</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-blue-100">
+                    <p className="text-xs text-blue-600 mb-1">Gender</p>
+                    <p className="font-semibold text-slate-800 capitalize">{student.gender || 'N/A'}</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-blue-100">
+                    <p className="text-xs text-blue-600 mb-1">Type</p>
+                    <p className="font-semibold text-slate-800 truncate">{studentTypeInfo.label}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-4 pt-4 border-t border-blue-100/50">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isStaffRelated ? 'bg-blue-600 border-blue-600' : 'bg-white border-blue-200 group-hover:border-blue-400'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="hidden" 
+                        checked={isStaffRelated} 
+                        onChange={(e) => setIsStaffRelated(e.target.checked)} 
+                      />
+                      {isStaffRelated && <FaCheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">Staff Related</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSpecialNeed ? 'bg-rose-600 border-rose-600' : 'bg-white border-blue-200 group-hover:border-blue-400'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="hidden" 
+                        checked={isSpecialNeed} 
+                        onChange={(e) => setIsSpecialNeed(e.target.checked)} 
+                      />
+                      {isSpecialNeed && <FaCheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">Special Need</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Friendly status (if already submitted) */}
+          {existingApp && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Current placement request</h3>
+              <p className="text-sm text-gray-700">
+                Status: <span className="font-semibold">{existingApp.status}</span>
+                {existingApp.city ? ` • City: ${existingApp.city}` : ''}
+              </p>
+              {existingApp.notes && (
+                <p className="mt-2 text-sm text-gray-600">Note: {existingApp.notes}</p>
+              )}
+              {existingApp.paymentStatus && existingApp.paymentStatus !== 'Not Applicable' && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Payment: <span className="font-semibold">{existingApp.paymentStatus}</span>
+                  {existingApp.paymentNotes ? ` • ${existingApp.paymentNotes}` : ''}
+                </p>
+              )}
+              {existingApp.originVerificationNote && (
+                <p className="mt-2 text-sm text-gray-600">
+                  FYDA scan: {existingApp.originVerified ? 'Verified' : 'Not verified'} • {existingApp.originVerificationNote}
+                </p>
+              )}
+              <p className="mt-3 text-xs text-gray-500">
+                If you need to fix something, you can submit again — your latest submission replaces the old one.
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={submit} className="space-y-6">
+            {submitError && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4">
+                <p className="text-sm font-semibold mb-1">We couldn’t submit your request</p>
+                <p className="text-sm">{submitError}</p>
+              </div>
+            )}
+
+            {/* City Input */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-3">
+                City of Origin <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 w-4 h-4" />
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all bg-white text-slate-800"
+                  placeholder="e.g. Bahir Dar, Addis Ababa"
+                />
+              </div>
+              {isAddis && isLikelyFarAddis && (
+                <div className="mt-3 flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                  <FaInfoCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>
+                    You indicated an <strong>outer / outskirts</strong> address. No additional letter is required.
+                    The server will still match your typed address to the English text on the back of your FYDA.
+                  </span>
+                </div>
+              )}
+              {needsCentralAddisLetter && (
+                <div className="mt-3 flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <FaInfoCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <span>Students from <strong>central</strong> Addis Ababa / Sheger / Finfinne must upload the additional letter.</span>
+                </div>
+              )}
+            </div>
+
+            {/* FYDA Documents */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <FaIdCard className="text-blue-600" />
+                FYDA Documents <span className="text-rose-500">*</span>
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Upload clear photos of your FYDA ID (front and back). Only JPG/PNG images are accepted (no PDF).
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Front */}
+                <div className="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-slate-700">Front Side</p>
+                    {fydaFront && <FaCheckCircle className="text-emerald-500 w-4 h-4" />}
+                  </div>
+                  {!fydaFront ? (
+                    <div 
+                      onClick={() => document.getElementById('fyda-front').click()}
+                      className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer"
+                    >
+                      <FaCamera className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs text-slate-500">Click to upload</p>
+                      <input
+                        id="fyda-front"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, setFydaFront, 'fydaFront')}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {previews.fydaFront ? (
+                        <img src={previews.fydaFront} alt="Front" className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <FaFilePdf className="w-8 h-8 text-blue-600" />
+                      )}
+                      <span className="text-sm text-slate-600 truncate flex-1">{fydaFront.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFydaFront(null);
+                          setPreviews(prev => ({ ...prev, fydaFront: null }));
+                        }}
+                        className="text-rose-500 hover:text-rose-700 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Back */}
+                <div className="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-slate-700">Back Side</p>
+                    {fydaBack && <FaCheckCircle className="text-emerald-500 w-4 h-4" />}
+                  </div>
+                  {!fydaBack ? (
+                    <div 
+                      onClick={() => document.getElementById('fyda-back').click()}
+                      className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer"
+                    >
+                      <FaCamera className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs text-slate-500">Click to upload</p>
+                      <input
+                        id="fyda-back"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, setFydaBack, 'fydaBack')}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {previews.fydaBack ? (
+                        <img src={previews.fydaBack} alt="Back" className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <FaFilePdf className="w-8 h-8 text-blue-600" />
+                      )}
+                      <span className="text-sm text-slate-600 truncate flex-1">{fydaBack.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFydaBack(null);
+                          setPreviews(prev => ({ ...prev, fydaBack: null }));
+                        }}
+                        className="text-rose-500 hover:text-rose-700 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Addis Letter (central only) */}
+            {needsCentralAddisLetter && (
+              <div className="bg-white rounded-2xl border border-amber-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <FaFileAlt className="text-amber-600" />
+                    Additional Letter <span className="text-rose-500">*</span>
+                  </h3>
+                  {addisLetter && <FaCheckCircle className="text-emerald-500 w-4 h-4" />}
+                </div>
+                
+                {!addisLetter ? (
+                  <div 
+                    onClick={() => document.getElementById('addis-letter').click()}
+                    className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center hover:border-amber-400 hover:bg-amber-50/30 transition-all cursor-pointer"
+                  >
+                    <FaUpload className="w-8 h-8 text-amber-300 mx-auto mb-2" />
+                    <p className="text-sm text-slate-600">Upload additional letter</p>
+                    <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG (max 10MB)</p>
+                    <input
+                      id="addis-letter"
+                      type="file"
+                      className="hidden"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => handleFileChange(e, setAddisLetter, 'addisLetter')}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between bg-amber-50 rounded-xl p-4 border border-amber-200">
+                    <div className="flex items-center gap-3">
+                      {previews.addisLetter ? (
+                        <img src={previews.addisLetter} alt="Letter" className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <FaFilePdf className="w-8 h-8 text-amber-600" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{addisLetter.name}</p>
+                        <p className="text-xs text-slate-500">{(addisLetter.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddisLetter(null);
+                        setPreviews(prev => ({ ...prev, addisLetter: null }));
+                      }}
+                      className="text-rose-500 hover:text-rose-700 p-2 hover:bg-amber-200 rounded-full transition-colors"
+                    >
+                      <FaTimes className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {(studentTypeInfo.isSelfSponsored || isPaid) && (
+              <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
+                    <FaCreditCard className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-800">Placement Fee</h3>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Status:</span>
+                          {isPaid ? (
+                            <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                              <FaCheckCircle className="w-2.5 h-2.5" /> Paid
+                            </span>
+                          ) : existingApp?.status === 'Waiting' ? (
+                            <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 shadow-sm animate-pulse">
+                              <FaCalendarAlt className="w-2.5 h-2.5" /> 
+                              {timeLeft ? `Assigning in ${timeLeft}` : 'Assigning now...'}
+                            </span>
+                          ) : paymentStatus === 'verifying' ? (
+                            <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 animate-pulse">
+                              <FaSpinner className="w-2.5 h-2.5 animate-spin" /> Verifying...
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
+                                <FaSpinner className="w-2.5 h-2.5" /> Pending
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-3">
+                      {isPaid 
+                        ? 'Your payment of 1,500 ETB has been successfully verified via the Chapa Gateway.' 
+                        : paymentStatus === 'verifying'
+                        ? 'Please wait, we are confirming your payment with the server...'
+                        : 'Self-sponsored students are required to pay 1,500 ETB for dorm placement.'}
+                    </p>
+                  </div>
+                </div>
+
+                {isPaid ? (
+                  <div className="bg-emerald-50 rounded-2xl p-6 border-2 border-emerald-200 relative overflow-hidden animate-in slide-in-from-top-4 duration-500">
+                    <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-200/20 rounded-full blur-2xl"></div>
+                    <div className="flex items-center gap-4 mb-4 relative z-10">
+                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                        <FaCheckCircle className="w-6 h-6 text-emerald-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-emerald-900">Payment Successful!</h4>
+                        <p className="text-xs text-emerald-700 font-medium tracking-wide uppercase">Dorm Fee Confirmed</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-emerald-100 mb-4 relative z-10">
+                      <p className="text-xs text-emerald-800 leading-relaxed font-medium">
+                        Thank you! Your payment has been verified. 
+                        <strong> All your information (City, FYDA) has been preserved. Please review the details one last time and click the "Submit Request" button below to complete your placement.</strong>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
+                      <FaLock className="w-2.5 h-2.5" /> ID: {existingApp?.chapaTxRef || 'CHAPA-SUCCESS'}
+                    </div>
+                  </div>
+                ) : paymentStatus === 'verifying' ? (
+                  <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-4">
+                    <FaSpinner className="w-10 h-10 text-blue-500 animate-spin" />
+                    <div className="text-center">
+                      <h4 className="font-bold text-blue-900">Verifying Payment...</h4>
+                      <p className="text-xs text-blue-700">Connecting to Chapa Secure Server</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between group hover:bg-blue-50/30 transition-all">
+                      <div>
+                        <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1">Total Amount</p>
+                        <p className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">1,500.00 <span className="text-sm font-bold opacity-50">ETB</span></p>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                        <FaUniversity className="w-5 h-5 text-blue-500" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={handleChapaPayment}
+                        className="group relative overflow-hidden flex items-center justify-center gap-3 py-4 bg-[#01c775] hover:bg-[#01b068] text-white rounded-2xl font-black transition-all shadow-xl shadow-emerald-100 hover:-translate-y-1 active:translate-y-0"
+                      >
+                        <div className="absolute inset-0 bg-white/10 translate-y-12 group-hover:translate-y-0 transition-transform duration-500"></div>
+                        <FaCreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                        <span className="text-lg relative z-10">Pay Online</span>
+                      </button>
+                      
+                      <div 
+                        onClick={() => document.getElementById('receipt-upload').click()}
+                        className="flex flex-col items-center justify-center py-4 bg-white border-2 border-dashed border-slate-200 text-slate-500 rounded-2xl font-bold hover:border-blue-400 hover:bg-blue-50/10 transition-all cursor-pointer group"
+                      >
+                        <FaUpload className="w-5 h-5 mb-1 group-hover:text-blue-500 transition-colors" />
+                        <span className="text-sm">Manual Receipt</span>
+                        <input
+                          id="receipt-upload"
+                          type="file"
+                          className="hidden"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => handleFileChange(e, setPaymentReceipt, 'paymentReceipt')}
+                        />
+                      </div>
+                    </div>
+
+                    {paymentReceipt && (
+                      <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <FaFileAlt className="text-blue-600 w-4 h-4" />
+                          </div>
+                          <span className="text-xs font-bold text-blue-800 truncate max-w-[150px]">{paymentReceipt.name}</span>
+                        </div>
+                        <button type="button" onClick={() => setPaymentReceipt(null)} className="p-2 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors">
+                          <FaTimes className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment Modal Overlay */}
+            {showPaymentModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !paymentLoading && setShowPaymentModal(false)}></div>
+                
+                <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl relative z-10 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                  {/* Chapa Header */}
+                  <div className="bg-[#01c775] p-6 text-white">
+                    <div className="flex items-center justify-between mb-6">
+                      <span className="text-2xl font-black tracking-tighter">chapa</span>
+                      <button onClick={() => !paymentLoading && setShowPaymentModal(false)} className="p-2 hover:bg-black/10 rounded-full transition">
+                        <FaTimes />
+                      </button>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-emerald-100 text-xs uppercase font-black tracking-widest mb-1">Total to Pay</p>
+                      <h3 className="text-4xl font-black">1,500.00 <span className="text-lg opacity-80">ETB</span></h3>
+                    </div>
+                  </div>
+
+                  {/* Payment Body */}
+                  <div className="p-6">
+                    <div className="space-y-4 mb-8">
+                      <div className="flex items-center justify-between text-sm py-2 border-b border-slate-50">
+                        <span className="text-slate-500">Student Name</span>
+                        <span className="font-bold text-slate-800">{profile?.student?.fullName}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm py-2 border-b border-slate-50">
+                        <span className="text-slate-500">Reference</span>
+                        <span className="font-bold text-slate-800">DORM-{(Math.random() * 100000).toFixed(0)}</span>
+                      </div>
+                    </div>
+
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Redirecting to Chapa</h4>
+                    <p className="text-sm text-slate-600 mb-8">
+                      You will be redirected to the secure Chapa payment gateway to complete your transaction using mobile money or card.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={handleChapaPayment}
+                      disabled={paymentLoading}
+                      className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50"
+                    >
+                      {paymentLoading ? (
+                        <>
+                          <FaSpinner className="animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FaLock className="text-xs opacity-50" />
+                          Proceed to Payment
+                        </>
+                      )}
+                    </button>
+                    
+                    <p className="text-center text-[10px] text-slate-400 mt-4 px-8">
+                      By clicking Proceed, you agree to the terms and conditions of AAU Housing and Chapa Financial Technologies.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Form Actions */}
+            <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-4">
+              <button
+                type="button"
+                onClick={() => navigate('/student-portal')}
+                className="px-6 py-2.5 text-slate-600 hover:text-slate-900 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium flex items-center gap-2 text-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {submitting ? (
+                  <>
+                    <FaSpinner className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    Submit Request
+                    <FaChevronRight className="w-3 h-3" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Right Side - Image with Blue Light Overlay */}
+        <div className="hidden lg:block w-[45%] relative overflow-hidden bg-gradient-to-br from-blue-900 to-indigo-900">
+          {/* Background Image */}
+          <img 
+            src="https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1786&q=80"
+            alt="University Campus"
+            className="absolute inset-0 w-full h-full object-cover opacity-60"
+          />
+          
+          {/* Blue Light Overlay - Multiple Layers */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/40 via-indigo-600/30 to-purple-600/40 mix-blend-overlay"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-800/40 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/60 to-transparent"></div>
+          
+          {/* Animated Light Effects */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute top-0 -left-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-0 -right-20 w-96 h-96 bg-indigo-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-300 rounded-full mix-blend-soft-light filter blur-3xl animate-pulse delay-500"></div>
+          </div>
+
+          {/* Content Overlay - Minimal */}
+          <div className="absolute bottom-0 left-0 right-0 p-12 text-white">
+            <div className="relative z-10">
+              <h2 className="text-4xl font-bold mb-3 leading-tight">
+                Your Home<br />Away From Home
+              </h2>
+              <p className="text-blue-100 text-lg max-w-md">
+                Experience comfortable and secure on-campus living at Addis Ababa University.
+              </p>
+              
+              {/* Decorative Elements */}
+              <div className="mt-8 flex gap-4">
+                <div className="w-16 h-1 bg-blue-400 rounded-full"></div>
+                <div className="w-8 h-1 bg-blue-300 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Subtle Pattern Overlay */}
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}></div>
+        </div>
+      </div>
+
+      {/* Addis Ababa Student Wait Modal */}
+      {showAddisWaitModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center relative animate-in zoom-in-95 duration-300 border border-blue-100">
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-200 rotate-12">
+              <FaCalendarAlt className="w-10 h-10 text-white -rotate-12" />
+            </div>
+            
+            <div className="mt-8 space-y-4">
+              <h3 className="text-2xl font-bold text-slate-800">Notice for Addis Ababa Students</h3>
+              <p className="text-slate-600 leading-relaxed">
+                As a resident of Addis Ababa, your application process requires a different timeline. 
+                <span className="block mt-4 font-semibold text-blue-600 bg-blue-50 py-3 rounded-xl">
+                  Please wait for exactly 5 minutes.
+                </span>
+              </p>
+              <div className="bg-amber-50 rounded-2xl p-4 flex items-start gap-3 text-left border border-amber-100">
+                <FaInfoCircle className="text-amber-500 w-5 h-5 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 font-medium">
+                  We have automatically scheduled a notification for you. You will be notified in exactly 5 minutes when the system opens for your region.
+                </p>
+              </div>
+              
+              <button
+                onClick={() => {
+                  setShowAddisWaitModal(false);
+                  navigate('/student-portal');
+                }}
+                className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-2xl font-bold transition-all shadow-lg hover:shadow-black/20"
+              >
+                Got it, take me back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

@@ -1,0 +1,19 @@
+@keyframes homepage-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.homepage-marquee-track {
+  display: inline-flex;
+  gap: 1rem;
+  animation: homepage-marquee 40s linear infinite;
+  will-change: transform;
+}
+
+#root {
+  min-height: 100vh;
+}

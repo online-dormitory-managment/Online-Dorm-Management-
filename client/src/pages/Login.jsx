@@ -1,0 +1,346 @@
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import {
+  FaLock,
+  FaEye,
+  FaEyeSlash,
+  FaChevronRight,
+  FaUserGraduate,
+  FaUserShield,
+  FaRegEnvelope,
+  FaRegBuilding,
+  FaRegCalendarCheck,
+  FaRegBell,
+  FaRegClock,
+  FaHome
+} from 'react-icons/fa';
+import { MdAdminPanelSettings, MdPrivacyTip, MdOutlineSecurity } from 'react-icons/md';
+import { FaFileContract } from 'react-icons/fa';
+import authApi from '../api/authApi';
+import logoImg from '../assets/logo/logo.png';
+
+export default function Login() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ userId: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!formData.userId.trim()) {
+      setError('Please enter your User ID / Student ID');
+      return;
+    }
+    if (!formData.password) {
+      setError('Please enter your password');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await authApi.login(formData.userId.trim(), formData.password);
+      const role = response.role || '';
+      
+      // Check for redirect parameter in URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const customRedirect = searchParams.get('redirect');
+      
+      let redirectPath = customRedirect || '/';
+      
+      if (!customRedirect) {
+
+      switch (role) {
+        case 'Student':
+          redirectPath = '/student-portal';
+          break;
+        case 'Proctor':
+          redirectPath = '/proctor/dashboard';
+          break;
+        case 'CampusAdmin':
+          redirectPath = '/dashboard';
+          break;
+        case 'SuperAdmin':
+          redirectPath = '/super-admin-dashboard';
+          break;
+        case 'EventPoster':
+          redirectPath = '/events-post';
+          break;
+        case 'Vendor':
+          redirectPath = '/vendor-dashboard';
+          break;
+        case 'MarketPlaceModerator':
+          redirectPath = '/marketplace-post';
+          break;
+        default:
+          if (formData.userId.toLowerCase().includes('ugr')) {
+            redirectPath = '/student-portal';
+          } else if (formData.userId.toLowerCase().includes('admin')) {
+            redirectPath = '/dashboard';
+          }
+      }
+    }
+
+         // Force full page reload to ensure axios and all contexts pickup the new token properly
+      window.location.href = redirectPath;
+    } catch (err) {
+      let errorMessage = 'Invalid User ID or Password. Please try again.';
+      if (err.message?.includes('No response from server')) {
+        errorMessage = 'Cannot connect to server. Please check your connection.';
+      } else if (err.message?.includes('Network Error')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (err.message?.includes('timeout')) {
+        errorMessage = 'Request timeout. Please try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex flex-col">
+      {/* Simple Header */}
+      <header className="w-full px-2 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          {/* Logo and Title - Left Side */}
+          <div className="flex items-center gap-0">
+            <img src={logoImg} alt="AAU Logo" className="h-12 w-auto object-contain" />
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">
+                Addis Ababa University
+              </h1>
+              <p className="text-xs text-slate-500">Online dormitory system</p>
+            </div>
+          </div>
+          
+          {/* Right Side - Home Button and Security Badge */}
+          <div className="flex items-center gap-4">
+            {/* Home Button with Blue Background */}
+            <Link
+              to="/"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl hover:from-blue-700 hover:to-indigo-700 text-black font-medium shadow-lg shadow-blue-200 hover:shadow-xl transition-all duration-200"
+            >
+              <FaHome className="w-4 h-4" />
+              <span className="text-sm">Home</span>
+            </Link>
+
+            {/* Security Badge - Hidden on mobile */}
+            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+              <MdOutlineSecurity className="w-4 h-4 text-blue-500" />
+              <span>Secure Login</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="max-w-6xl w-full mx-auto grid lg:grid-cols-2 gap-8 items-center">
+          
+          {/* Left Side - Hero Section */}
+          <div className="hidden lg:block space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-4xl lg:text-5xl font-bold text-slate-800 leading-tight">
+                Your Digital<br />
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Dormitory Experience
+                </span>
+              </h2>
+              <p className="text-lg text-slate-600 max-w-md">
+                Everything you need to manage your dorm life in one beautiful, 
+                intuitive platform.
+              </p>
+            </div>
+
+            {/* Feature Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg shadow-blue-100/50 border border-white">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
+                  <FaRegCalendarCheck className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-slate-800">Room Management</h3>
+                <p className="text-sm text-slate-500 mt-1">View assignments & requests</p>
+              </div>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg shadow-indigo-100/50 border border-white">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3">
+                  <FaRegBell className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-slate-800">Real-time Updates</h3>
+                <p className="text-sm text-slate-500 mt-1">Stay informed instantly</p>
+              </div>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg shadow-purple-100/50 border border-white">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mb-3">
+                  <FaRegClock className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-slate-800">24/7 Support</h3>
+                <p className="text-sm text-slate-500 mt-1">Always here to help</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Login Card */}
+          <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
+            <div className="bg-white rounded-3xl shadow-2xl shadow-blue-200/50 p-8 space-y-6 border border-white/50">
+              {/* Welcome Header */}
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-slate-800">Welcome back</h2>
+                <p className="text-sm text-slate-500">
+                  Please enter your credentials to access your account.
+                </p>
+              </div>
+
+              {/* Role Indicators */}
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+                {[
+                  { icon: FaUserGraduate, label: 'Student', color: 'blue' },
+                  { icon: FaUserShield, label: 'Proctor', color: 'indigo' },
+                  { icon: MdAdminPanelSettings, label: 'Admin', color: 'purple' }
+                ].map((role, idx) => (
+                  <div
+                    key={idx}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-slate-600 hover:bg-white hover:text-slate-800 hover:shadow-sm transition-all cursor-pointer"
+                  >
+                    <role.icon className={`w-3.5 h-3.5 text-${role.color}-500`} />
+                    <span className="hidden sm:inline">{role.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* User ID Field */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="userId"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    User ID / Student ID
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                      <FaUserGraduate className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="userId"
+                      name="userId"
+                      type="text"
+                      value={formData.userId}
+                      onChange={handleInputChange}
+                      autoComplete="username"
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all text-sm bg-slate-50 focus:bg-white"
+                      placeholder="e.g., UGR/0000/00"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Password
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                      <FaLock className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      autoComplete="current-password"
+                      className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all text-sm bg-slate-50 focus:bg-white"
+                      placeholder="Enter your password"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      disabled={isLoading}
+                    >
+                      {showPassword ? (
+                        <FaEyeSlash className="w-4 h-4" />
+                      ) : (
+                        <FaEye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember & Forgot */}
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-sm text-slate-600">Remember me</span>
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                    {error}
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign in to Dashboard</span>
+                      <FaChevronRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                {/* Help Text */}
+                <p className="text-center text-xs text-slate-400">
+                  By signing in, you agree to our{' '}
+                  <Link to="/terms" className="text-blue-600 hover:underline">Terms</Link>
+                  {' '}and{' '}
+                  <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
+                </p>
+              </form>
+            </div>
+
+            {/* Mobile Help Text */}
+            <p className="text-center text-sm text-slate-500 mt-6 lg:hidden">
+              Need help? Contact your campus IT support
+            </p>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  );
+}
