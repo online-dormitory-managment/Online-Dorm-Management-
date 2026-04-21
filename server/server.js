@@ -35,9 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // HTTP request logger
 
 // Serve static files from the uploads directory
-const uploadsDir = process.env.VERCEL 
-  ? path.join(process.cwd(), 'server', 'uploads') 
-  : path.join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, 'uploads');
 console.log(`📂 Serving static files from: ${uploadsDir}`);
 app.use('/uploads', express.static(uploadsDir));
 
@@ -105,6 +103,22 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
+});
+
+// Debug uploads endpoint
+app.get('/api/debug-uploads', (req, res) => {
+  try {
+    const fs = require('fs');
+    const structure = fs.readdirSync(uploadsDir);
+    res.json({
+      uploadsDir,
+      __dirname,
+      cwd: process.cwd(),
+      structure
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, uploadsDir });
+  }
 });
 
 // API Routes
