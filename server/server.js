@@ -189,12 +189,14 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 API available at http://localhost:${PORT}/api`);
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 API available at http://localhost:${PORT}/api`);
 
-  // Create test users after server starts
-  await createTestUser();
-});
+    // Create test users after server starts
+    await createTestUser();
+  });
+}
 
 module.exports = app;
