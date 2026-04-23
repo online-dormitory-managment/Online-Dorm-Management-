@@ -34,9 +34,9 @@ const {
 } = require('../utils/fydaAddressMatch');
 
 /** OCR: English only for reliability (FYDA English address lines; Amharic ignored for matching). */
-async function tryOcrText(filePath, jobTimeout = 25000) {
+async function tryOcrText(filePath, jobTimeout = 8000) {
   const start = Date.now();
-  console.log(`🔍 OCR started for: ${path.basename(filePath)}`);
+  console.log(`🔍 OCR started for: ${path.basename(filePath)} (8s limit)`);
   
   const timeoutPromise = new Promise((_, reject) => 
     setTimeout(() => reject(new Error('OCR_TIMEOUT')), jobTimeout)
