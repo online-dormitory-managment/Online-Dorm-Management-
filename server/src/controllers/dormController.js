@@ -8,14 +8,10 @@ let ocrScheduler = null;
 async function getOcrScheduler() {
   if (ocrScheduler) return ocrScheduler;
   ocrScheduler = createScheduler();
-  // Create 2 workers in parallel for speed
-  const [worker1, worker2] = await Promise.all([
-    createWorker('eng'),
-    createWorker('eng')
-  ]);
-  ocrScheduler.addWorker(worker1);
-  ocrScheduler.addWorker(worker2);
-  console.log('✅ OCR Scheduler initialized with 2 workers (parallel boot)');
+  // Use 1 worker to conserve memory/CPU on Vercel
+  const worker = await createWorker('eng');
+  ocrScheduler.addWorker(worker);
+  console.log('✅ OCR Scheduler initialized with 1 worker (optimized for Vercel)');
   return ocrScheduler;
 }
 
@@ -38,13 +34,31 @@ const {
 } = require('../utils/fydaAddressMatch');
 
 /** OCR: English only for reliability (FYDA English address lines; Amharic ignored for matching). */
-async function tryOcrText(filePath) {
+async function tryOcrText(filePath, jobTimeout = 25000) {
+  const start = Date.now();
+  console.log(`🔍 OCR started for: ${path.basename(filePath)}`);
+  
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('OCR_TIMEOUT')), jobTimeout)
+  );
+
   try {
     const scheduler = await getOcrScheduler();
-    const { data } = await scheduler.addJob('recognize', filePath);
-    return String(data?.text || '');
+    const result = await Promise.race([
+      scheduler.addJob('recognize', filePath),
+      timeoutPromise
+    ]);
+    
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    console.log(`✅ OCR finished in ${duration}s for ${path.basename(filePath)}`);
+    return String(result.data?.text || '');
   } catch (err) {
-    console.error('OCR Error for', filePath, ':', err.message);
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    if (err.message === 'OCR_TIMEOUT') {
+      console.warn(`⏳ OCR timed out after ${duration}s for ${path.basename(filePath)}`);
+      throw new Error('OCR_TIMEOUT');
+    }
+    console.error(`❌ OCR Error after ${duration}s for ${path.basename(filePath)}:`, err.message);
     return '';
   }
 }
@@ -129,25 +143,35 @@ const submitApplication = async (req, res) => {
     const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // === OCR + Name Check (Parallelized for speed) ===
-    const [frontText, backText] = await Promise.all([
-      tryOcrText(path.resolve(frontFile.path)),
-      tryOcrText(path.resolve(backFile.path))
-    ]);
-
-    const nameOk = nameLikelyOnId(student.fullName, frontText);
-    if (!nameOk) {
-      return res.status(400).json({ success: false, message: 'Name on ID does not match registered name.' });
+    // === OCR BACK ID ONLY (Address Check) ===
+    // We skip the Front ID OCR to save time (Vercel has 10-60s limit). 
+    // Address verification on the back is most critical for dorm eligibility.
+    let backText = '';
+    let ocrTimedOut = false;
+    try {
+      backText = await tryOcrText(path.resolve(backFile.path));
+    } catch (ocrErr) {
+      if (ocrErr.message === 'OCR_TIMEOUT') {
+        ocrTimedOut = true;
+        console.warn('OCR timed out, proceeding to manual review.');
+      } else {
+        console.error('OCR skip due to error:', ocrErr);
+      }
     }
 
     // === CRITICAL CONCEPT: Verify applied city matches ID address ===
-    if (!cityMatchesBackOcr(city, backText)) {
-      const addressSnippet = (extractAddressRegionFromBackOcr(backText) || backText).slice(0, 100);
-      console.log(`❌ City mismatch detected: applied "${city}" but ID OCR found: "${addressSnippet}"`);
-      return res.status(400).json({ 
-        success: false, 
-        message: `City mismatch: Your application city (${city}) was not detected on your ID. We only found: "${addressSnippet}...". Please ensure your photo is clear.` 
-      });
+    let originVerified = false;
+    let verificationNote = '';
+
+    if (backText && cityMatchesBackOcr(city, backText)) {
+      originVerified = true;
+      verificationNote = 'Auto-verified via FYDA OCR.';
+    } else if (ocrTimedOut) {
+      originVerified = false;
+      verificationNote = 'OCR Timed out. Manual verification required.';
+    } else {
+      originVerified = false;
+      verificationNote = 'OCR could not find city match. Manual review required.';
     }
 
     const isOutside = !cityImpliesAddis(city);
@@ -184,7 +208,9 @@ const submitApplication = async (req, res) => {
       paymentStatus,
       status,
       chapaTxRef,
-      scheduledReleaseAt
+      scheduledReleaseAt,
+      originVerified,
+      originVerificationNote: verificationNote
     };
 
     let application = await DormApplication.findOne({ student: student._id });

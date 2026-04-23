@@ -66,7 +66,7 @@ function impliesFarAddisFromCity(city) {
   return hints.some((k) => v.includes(k));
 }
 
-const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
+const compressImage = (file, maxWidth = 1000, quality = 0.8) => {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) return resolve(file);
     const reader = new FileReader();

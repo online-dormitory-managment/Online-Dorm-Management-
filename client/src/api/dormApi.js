@@ -10,6 +10,7 @@ const UNIVERSITY_ACCOUNT = import.meta.env.VITE_UNIVERSITY_ACCOUNT || '100012345
 // Create axios instance with auth headers
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 55000, // 55 seconds
   headers: {
     'Content-Type': 'application/json',
   },
@@ -44,7 +45,7 @@ export const dormApi = {
   // Get current student's profile
   getStudentProfile: async () => {
     try {
-      const response = await api.get('/students/me');
+      const response = await api.get('/students/me', { timeout: 10000 });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
