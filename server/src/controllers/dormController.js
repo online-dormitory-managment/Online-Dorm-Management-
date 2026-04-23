@@ -34,9 +34,9 @@ const {
 } = require('../utils/fydaAddressMatch');
 
 /** OCR: English only for reliability (FYDA English address lines; Amharic ignored for matching). */
-async function tryOcrText(filePath, jobTimeout = 8000) {
+async function tryOcrText(filePath, jobTimeout = 7500) {
   const start = Date.now();
-  console.log(`🔍 OCR started for: ${path.basename(filePath)} (8s limit)`);
+  console.log(`🔍 OCR started for: ${path.basename(filePath)} (7.5s limit)`);
   
   const timeoutPromise = new Promise((_, reject) => 
     setTimeout(() => reject(new Error('OCR_TIMEOUT')), jobTimeout)
@@ -143,23 +143,42 @@ const submitApplication = async (req, res) => {
     const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // === OCR BACK ID ONLY (Address Check) ===
-    // We skip the Front ID OCR to save time (Vercel has 10-60s limit). 
-    // Address verification on the back is most critical for dorm eligibility.
+    // === PARALLEL: OCR & Payment Initialization ===
+    // We run these in parallel to maximize the 10s Vercel window.
     let backText = '';
     let ocrTimedOut = false;
-    try {
-      backText = await tryOcrText(path.resolve(backFile.path));
-    } catch (ocrErr) {
-      if (ocrErr.message === 'OCR_TIMEOUT') {
-        ocrTimedOut = true;
-        console.warn('OCR timed out, proceeding to manual review.');
-      } else {
-        console.error('OCR skip due to error:', ocrErr);
-      }
+    let paymentInfo = null;
+
+    const parallelTasks = [
+      (async () => {
+        try {
+          backText = await tryOcrText(path.resolve(backFile.path), 7500); // Tight 7.5s limit
+        } catch (ocrErr) {
+          if (ocrErr.message === 'OCR_TIMEOUT') {
+            ocrTimedOut = true;
+            console.warn('OCR timed out after 7.5s, falling back to manual review.');
+          } else {
+            console.error('OCR Error:', ocrErr.message);
+          }
+        }
+      })()
+    ];
+
+    const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
+    if (isSelfSponsored) {
+      parallelTasks.push((async () => {
+        try {
+          paymentInfo = await initializeChapaPayment(student, 1500);
+        } catch (e) {
+          console.error('Chapa initialization failed:', e.message);
+        }
+      })());
     }
 
-    // === CRITICAL CONCEPT: Verify applied city matches ID address ===
+    // Wait for all processes to finish or timeout
+    await Promise.all(parallelTasks);
+
+    // === VERIFICATION LOGIC ===
     let originVerified = false;
     let verificationNote = '';
 
@@ -171,28 +190,19 @@ const submitApplication = async (req, res) => {
       verificationNote = 'OCR Timed out. Manual verification required.';
     } else {
       originVerified = false;
-      verificationNote = 'OCR could not find city match. Manual review required.';
+      verificationNote = 'OCR could not match city. Manual review required.';
     }
 
     const isOutside = !cityImpliesAddis(city);
     const priority = qualifiesForImmediateDorm(city, backText);
-    let status = 'Pending';
-    let paymentStatus = 'NotRequired';
-    let chapaPaymentUrl = null;
-    let chapaTxRef = null;
+    let status = 'Waiting';
+    let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
+    let chapaPaymentUrl = paymentInfo?.checkout_url || null;
+    let chapaTxRef = paymentInfo?.tx_ref || null;
     const isAddis = cityImpliesAddis(city);
     
     // UNIVERSAL RULE: All students MUST wait exactly 5 minutes for room assignment
-    status = 'Waiting';
-    scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
-    
-    // For self-sponsored students, still set up the Chapa payment details so they can pay during the wait
-    if (student.sponsorship === 'Self-Sponsored') {
-      paymentStatus = 'Pending';
-      const paymentInfo = await initializeChapaPayment(student, 1500);
-      chapaPaymentUrl = paymentInfo.checkout_url;
-      chapaTxRef = paymentInfo.tx_ref;
-    }
+    const scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
 
     // ==================== SAVE APPLICATION ====================
     const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');
