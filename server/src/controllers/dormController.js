@@ -375,4 +375,5 @@ module.exports = {
   assignPendingApplications,
   assignStudentToRoom,
   findRoomForStudent,
+  getOcrScheduler,
 };

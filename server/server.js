@@ -11,6 +11,8 @@ const authRoutes = require('./src/routes/authRoutes');
 const studentRoutes = require('./src/routes/studentRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 
+const { getOcrScheduler } = require('./src/controllers/dormController');
+
 // Import models
 const Student = require('./src/models/Student');
 const User = require('./src/models/User');
@@ -289,6 +291,10 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
 
     // Create test users after server starts
     await createTestUser();
+
+    // Pre-warm OCR Workers
+    console.log('🚀 Pre-warming OCR Scheduler...');
+    getOcrScheduler().catch(err => console.error('❌ OCR Pre-warm error:', err));
   });
 }
 

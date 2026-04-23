@@ -232,7 +232,7 @@ console.log('=== ROUTES LOADED ===\n');
 // Background Worker for Scheduled Notifications & Automated AA Assignment
 const Notification = require('./models/Notification');
 const DormApplication = require('./models/DormApplication');
-const { assignStudentToRoom } = require('./controllers/dormController');
+const { assignStudentToRoom, getOcrScheduler } = require('./controllers/dormController');
 setInterval(async () => {
   try {
     const now = new Date();
@@ -289,6 +289,10 @@ if (!process.env.VERCEL) {
     console.log('  GET  /api/students/debug');
     console.log('  GET  /api/students/dashboard');
     console.log('  POST /api/auth/login (local fix ready)');
+
+    // Pre-warm OCR Workers
+    console.log('🚀 Pre-warming OCR Scheduler...');
+    getOcrScheduler().catch(err => console.error('❌ OCR Pre-warm error:', err));
   });
 }
 // End of file (payment integration check)

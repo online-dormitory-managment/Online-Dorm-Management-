@@ -66,6 +66,48 @@ function impliesFarAddisFromCity(city) {
   return hints.some((k) => v.includes(k));
 }
 
+const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) return resolve(file);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 export default function PlacementRequestSimple() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -408,12 +450,29 @@ export default function PlacementRequestSimple() {
     setSubmitting(true);
     const loadingToast = toast.loading(isAddis ? 'Preparing your Addis Ababa application...' : 'Submitting placement request...');
     try {
+      // === COMPRESSION STEP: Resize and compress images to speed up OCR ===
+      let activeFront = fydaFront;
+      let activeBack = fydaBack;
+
+      try {
+        if (fydaFront && fydaFront.type.startsWith('image/')) {
+          activeFront = await compressImage(fydaFront);
+          console.log(`Optimized Front: ${(fydaFront.size / 1024).toFixed(1)}KB -> ${(activeFront.size / 1024).toFixed(1)}KB`);
+        }
+        if (fydaBack && fydaBack.type.startsWith('image/')) {
+          activeBack = await compressImage(fydaBack);
+          console.log(`Optimized Back: ${(fydaBack.size / 1024).toFixed(1)}KB -> ${(activeBack.size / 1024).toFixed(1)}KB`);
+        }
+      } catch (compressErr) {
+        console.error('Compression failed, using originals:', compressErr);
+      }
+
       const fd = new FormData();
       fd.append('city', city.trim());
       fd.append('isStaffRelated', isStaffRelated);
       fd.append('isSpecialNeed', isSpecialNeed);
-      fd.append('fydaFront', fydaFront);
-      fd.append('fydaBack', fydaBack);
+      fd.append('fydaFront', activeFront);
+      fd.append('fydaBack', activeBack);
       if (addisLetter) fd.append('addisLetter', addisLetter);
       if (studentTypeInfo.isSelfSponsored && paymentReceipt) fd.append('paymentReceipt', paymentReceipt);
 
