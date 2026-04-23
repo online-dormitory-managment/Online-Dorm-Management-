@@ -69,6 +69,13 @@ function impliesFarAddisFromCity(city) {
 const compressImage = (file, maxWidth = 1000, quality = 0.8) => {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) return resolve(file);
+    
+    // Safety timeout: if compression takes more than 15s, use original
+    const timeout = setTimeout(() => {
+      console.warn("Compression timed out, using original file.");
+      resolve(file);
+    }, 15000);
+
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -92,6 +99,7 @@ const compressImage = (file, maxWidth = 1000, quality = 0.8) => {
 
         canvas.toBlob(
           (blob) => {
+            clearTimeout(timeout);
             const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
               type: 'image/jpeg',
               lastModified: Date.now(),
@@ -102,9 +110,15 @@ const compressImage = (file, maxWidth = 1000, quality = 0.8) => {
           quality
         );
       };
-      img.onerror = (err) => reject(err);
+      img.onerror = (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      }
     };
-    reader.onerror = (err) => reject(err);
+    reader.onerror = (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    }
   });
 };
 

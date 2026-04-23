@@ -5,14 +5,41 @@ const { initializeChapaPayment } = require('../utils/chapa');
 
 // --- OCR Optimization: Shared Scheduler ---
 let ocrScheduler = null;
+let ocrInitPromise = null;
+
 async function getOcrScheduler() {
   if (ocrScheduler) return ocrScheduler;
-  ocrScheduler = createScheduler();
-  // Use 1 worker to conserve memory/CPU on Vercel
-  const worker = await createWorker('eng');
-  ocrScheduler.addWorker(worker);
-  console.log('✅ OCR Scheduler initialized with 1 worker (optimized for Vercel)');
-  return ocrScheduler;
+  if (ocrInitPromise) return ocrInitPromise;
+
+  ocrInitPromise = (async () => {
+    // Timeout for worker initialization (Vercel cold start can be slow)
+    const initTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('SCHEDULER_INIT_TIMEOUT')), 10000)
+    );
+
+    try {
+      console.log('🏗️  Initializing OCR Singleton Worker...');
+      const tempScheduler = createScheduler();
+      
+      const workerPromise = (async () => {
+        const worker = await createWorker('eng');
+        tempScheduler.addWorker(worker);
+        return tempScheduler;
+      })();
+
+      ocrScheduler = await Promise.race([workerPromise, initTimeout]);
+      console.log('✅ OCR Singleton Scheduler Ready');
+      return ocrScheduler;
+    } catch (err) {
+      console.warn('⚠️ OCR Scheduler initialization failed/timed out:', err.message);
+      ocrScheduler = null;
+      return null;
+    } finally {
+      ocrInitPromise = null;
+    }
+  })();
+
+  return ocrInitPromise;
 }
 
 const DormApplication = require('../models/DormApplication');
@@ -36,29 +63,31 @@ const {
 /** OCR: English only for reliability (FYDA English address lines; Amharic ignored for matching). */
 async function tryOcrText(filePath, jobTimeout = 7500) {
   const start = Date.now();
-  console.log(`🔍 OCR started for: ${path.basename(filePath)} (7.5s limit)`);
   
   const timeoutPromise = new Promise((_, reject) => 
     setTimeout(() => reject(new Error('OCR_TIMEOUT')), jobTimeout)
   );
 
   try {
-    const scheduler = await getOcrScheduler();
-    const result = await Promise.race([
-      scheduler.addJob('recognize', filePath),
-      timeoutPromise
-    ]);
+    const jobPromise = (async () => {
+      const scheduler = await getOcrScheduler();
+      if (!scheduler) throw new Error('NO_SCHEDULER');
+      const result = await scheduler.addJob('recognize', filePath);
+      return result;
+    })();
+
+    const result = await Promise.race([jobPromise, timeoutPromise]);
     
     const duration = ((Date.now() - start) / 1000).toFixed(2);
     console.log(`✅ OCR finished in ${duration}s for ${path.basename(filePath)}`);
-    return String(result.data?.text || '');
+    return String(result?.data?.text || '');
   } catch (err) {
     const duration = ((Date.now() - start) / 1000).toFixed(2);
-    if (err.message === 'OCR_TIMEOUT') {
-      console.warn(`⏳ OCR timed out after ${duration}s for ${path.basename(filePath)}`);
+    if (err.message === 'OCR_TIMEOUT' || err.message === 'SCHEDULER_INIT_TIMEOUT' || err.message === 'NO_SCHEDULER') {
+      console.warn(`⏳ OCR skipped after ${duration}s due to: ${err.message}`);
       throw new Error('OCR_TIMEOUT');
     }
-    console.error(`❌ OCR Error after ${duration}s for ${path.basename(filePath)}:`, err.message);
+    console.error(`❌ OCR Error after ${duration}s:`, err.message);
     return '';
   }
 }

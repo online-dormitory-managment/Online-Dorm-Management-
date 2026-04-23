@@ -20,7 +20,10 @@ const initializeChapaPayment = async (student, amount = 1500) => {
   const response = await axios.post(
     'https://api.chapa.co/v1/transaction/initialize',
     payload,
-    { headers: { Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}` } }
+    { 
+      headers: { Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}` },
+      timeout: 10000 // 10 second timeout for Chapa
+    }
   );
 
   return {
