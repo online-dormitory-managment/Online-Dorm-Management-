@@ -313,23 +313,31 @@ const submitApplication = async (req, res) => {
       });
     }
 
+    let verificationNote = 'Strictly verified: FYDA front name and back-side city match.';
+    let finalCity = city;
     const cityMatches = strictCityMatchFromBackOcr(city, backText);
     if (!cityMatches) {
+      // Fallback: OCR can be noisy; allow near-match and auto-correct/notify.
+      const fuzzyMatch = cityMatchesBackOcr(city, backText);
       const suggested = citySuggestionFromBackOcr(backText);
-      return res.status(400).json({
-        success: false,
-        message: suggested
-          ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (suggested: "${suggested}").`
-          : 'Declared city does not match the FYDA back-side address. Please use the exact city spelling from your FYDA.',
-      });
+      if (fuzzyMatch && suggested) {
+        finalCity = suggested;
+        verificationNote = `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: suggested
+            ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (suggested: "${suggested}").`
+            : 'Declared city does not match the FYDA back-side address. Please use the exact city spelling from your FYDA.',
+        });
+      }
     }
 
     const originVerified = true;
-    const verificationNote = 'Strictly verified: FYDA front name and back-side city match.';
 
     // Policy decision should follow the verified declared city.
-    const isAddis = cityImpliesAddis(city);
-    const isFar = impliesFarAddis(city, backText);
+    const isAddis = cityImpliesAddis(finalCity);
+    const isFar = impliesFarAddis(finalCity, backText);
     // Policy: all Addis Ababa applicants wait 5 minutes before assignment.
     // Outside Addis can be assigned immediately.
     const requiresWait = isAddis;
@@ -360,7 +368,7 @@ const submitApplication = async (req, res) => {
     const appPayload = {
       student: student._id,
       reason,
-      city,
+      city: finalCity,
       nationalIdFront: rel(frontFile.path),
       nationalIdBack: rel(backFile.path),
       extractedAddress: extractAddressRegionFromBackOcr(backText) || backText.slice(0, 8000),
