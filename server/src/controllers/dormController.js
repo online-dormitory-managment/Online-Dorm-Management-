@@ -53,6 +53,7 @@ function roomGenderFilter(gender) {
 }
 const { getCampusForDepartment } = require('../utils/campus');
 const {
+  normalizeAscii,
   extractAddressRegionFromBackOcr,
   cityMatchesBackOcr,
   cityImpliesAddis,
@@ -136,6 +137,32 @@ function citySuggestionFromBackOcr(backText) {
   const region = extractAddressRegionFromBackOcr(backText);
   const words = (String(region).match(/[A-Za-z]{3,}/g) || []).slice(0, 3);
   return words.join(' ');
+}
+
+function strictCityMatchFromBackOcr(city, backText) {
+  const rawCity = String(city || '').split(',')[0].trim();
+  if (!rawCity || !backText) return false;
+
+  // Addis-family values are validated by Addis indicators on back-side OCR.
+  if (cityImpliesAddis(rawCity)) {
+    return backOcrImpliesAddisArea(backText);
+  }
+
+  // For non-Addis cities, require direct match against extracted address region.
+  const addrRegion = extractAddressRegionFromBackOcr(backText) || backText;
+  const addrAscii = normalizeAscii(addrRegion);
+  const cityAscii = normalizeAscii(rawCity);
+  if (!addrAscii || !cityAscii) return false;
+
+  if (addrAscii.includes(cityAscii)) return true;
+
+  // Multi-word fallback: all substantial city tokens must appear.
+  const parts = rawCity
+    .split(/\s+/)
+    .map((p) => normalizeAscii(p))
+    .filter((p) => p.length >= 4);
+  if (parts.length === 0) return false;
+  return parts.every((p) => addrAscii.includes(p));
 }
 
 /**
@@ -286,7 +313,7 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    const cityMatches = cityMatchesBackOcr(city, backText);
+    const cityMatches = strictCityMatchFromBackOcr(city, backText);
     if (!cityMatches) {
       const suggested = citySuggestionFromBackOcr(backText);
       return res.status(400).json({
@@ -300,7 +327,8 @@ const submitApplication = async (req, res) => {
     const originVerified = true;
     const verificationNote = 'Strictly verified: FYDA front name and back-side city match.';
 
-    const isAddis = cityImpliesAddis(city) || backOcrImpliesAddisArea(backText);
+    // Policy decision should follow the verified declared city.
+    const isAddis = cityImpliesAddis(city);
     const isFar = impliesFarAddis(city, backText);
     // Policy: all Addis Ababa applicants wait 5 minutes before assignment.
     // Outside Addis can be assigned immediately.
