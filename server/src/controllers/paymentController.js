@@ -10,7 +10,15 @@ const { assignStudentToRoom } = require('./dormController');
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
 const CHAPA_CALLBACK_URL = (process.env.CHAPA_CALLBACK_URL || '').trim();
-const CHAPA_RETURN_URL = (process.env.CHAPA_RETURN_URL || process.env.FRONTEND_URL + '/placement-request' || '').trim();
+
+function buildPlacementReturnUrl() {
+  const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
+  if (explicit) return explicit;
+
+  const frontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+  if (!frontend) return '';
+  return `${frontend}/placement-request?payment=success`;
+}
 
 const logToFile = (msg) => {
   if (!process.env.VERCEL) {
@@ -57,13 +65,15 @@ const initializePayment = async (req, res) => {
     // this allows testing the full dorm assignment flow.
     if (process.env.CHAPA_MOCK_MODE === 'true') {
       logToFile(`🛠️ [SANDBOX MODE] Simulating Redirect for: ${tx_ref}`);
+      const returnUrl = buildPlacementReturnUrl();
       return res.json({
         success: true,
-        checkout_url: `${CHAPA_RETURN_URL}${CHAPA_RETURN_URL.includes('?') ? '&' : '?'}payment=success&tx_ref=${tx_ref}`,
+        checkout_url: `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}tx_ref=${tx_ref}`,
         tx_ref
       });
     }
 
+    const returnUrl = buildPlacementReturnUrl();
     const data = {
       amount: String(amount), // Send as string for compatibility
       currency,
@@ -71,7 +81,7 @@ const initializePayment = async (req, res) => {
       first_name: student.fullName.split(' ')[0],
       last_name: student.fullName.split(' ').slice(1).join(' ') || 'Student',
       tx_ref,
-      return_url: CHAPA_RETURN_URL || `${process.env.FRONTEND_URL}/placement-request`,
+      return_url: returnUrl,
       "customization[title]": "AAU Dormitory Fee",
       "customization[description]": "Self-sponsored dorm placement payment"
     };

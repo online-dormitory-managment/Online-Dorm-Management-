@@ -1,6 +1,24 @@
 // src/utils/chapa.js
 const axios = require('axios');
 
+function buildPlacementReturnUrl() {
+  const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
+  if (explicit) return explicit;
+
+  const frontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+  if (!frontend) return '';
+  return `${frontend}/placement-request?payment=success`;
+}
+
+function buildCallbackUrl() {
+  const explicit = (process.env.CHAPA_CALLBACK_URL || '').trim();
+  if (explicit) return explicit;
+
+  const backend = (process.env.BACKEND_URL || '').trim().replace(/\/+$/, '');
+  if (!backend) return '';
+  return `${backend}/api/payment/webhook`;
+}
+
 const initializeChapaPayment = async (student, amount = 1500) => {
   const tx_ref = `dorm_${Date.now()}`;
 
@@ -13,8 +31,8 @@ const initializeChapaPayment = async (student, amount = 1500) => {
     tx_ref: tx_ref,
     title: "AAU Dormitory Fee",
     description: `Dorm fee for ${student.fullName}`,
-    callback_url: process.env.CHAPA_CALLBACK_URL || "http://localhost:5000/api/payment/webhook",
-    return_url: process.env.CHAPA_RETURN_URL || "http://localhost:5173/placement-request?payment=success",
+    callback_url: buildCallbackUrl(),
+    return_url: buildPlacementReturnUrl(),
   };
 
   const response = await axios.post(

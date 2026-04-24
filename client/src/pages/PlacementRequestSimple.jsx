@@ -316,6 +316,10 @@ export default function PlacementRequestSimple() {
             toast.success('Payment verified!', { id: verifToast });
             localStorage.removeItem('pending_chapa_tx_ref');
             setSearchParams({}, { replace: true });
+            // Ensure we stay on the dorm placement page after payment.
+            if (window.location.pathname !== '/placement-request') {
+              window.location.href = '/placement-request';
+            }
           } else {
             toast.error(verifyRes.message || 'Verification failed', { id: verifToast });
             setPaymentStatus('error');
