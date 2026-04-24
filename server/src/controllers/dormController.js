@@ -337,19 +337,15 @@ const submitApplication = async (req, res) => {
 
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
-    // Addis Ababa policy: if (and only if) the student explicitly applied as "Addis Ababa"
-    // AND we already passed strict FYDA back-side city match, put the application into a 5-minute wait.
-    // The background worker will auto-assign after the timer and create a notification.
-    const addisWaitMs = 5 * 60 * 1000;
-    const requiresAddisWait = isAddis;
-
-    let status = requiresAddisWait ? 'Waiting' : 'Assigned';
-    let scheduledReleaseAt = requiresAddisWait ? new Date(Date.now() + addisWaitMs) : null;
+    // Assignment policy: after strict FYDA verification passes, attempt immediate assignment.
+    // Addis Ababa is no longer delayed.
+    let status = 'Assigned';
+    let scheduledReleaseAt = null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
     
-    // Immediate assignment attempt only when not in Addis wait.
+    // Immediate assignment attempt for all verified applications.
 
     // ==================== SAVE APPLICATION ====================
     const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');
