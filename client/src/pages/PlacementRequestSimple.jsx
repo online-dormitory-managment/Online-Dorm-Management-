@@ -500,7 +500,16 @@ export default function PlacementRequestSimple() {
       fd.append('fydaFront', activeFront);
       fd.append('fydaBack', activeBack);
       if (addisLetter) fd.append('addisLetter', addisLetter);
-      if (studentTypeInfo.isSelfSponsored && paymentReceipt) fd.append('paymentReceipt', paymentReceipt);
+      
+      if (studentTypeInfo.isSelfSponsored) {
+        let finalReceipt = paymentReceipt;
+        if (isPaid && !finalReceipt) {
+          finalReceipt = await generateDigitalReceipt();
+        }
+        if (finalReceipt) {
+           fd.append('paymentReceipt', finalReceipt);
+        }
+      }
 
       const res = await dormApi.submitApplication(fd);
       toast.dismiss(loadingToast);
