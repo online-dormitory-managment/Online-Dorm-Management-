@@ -16,7 +16,8 @@ import {
   FaQuestionCircle,
   FaSignOutAlt,
   FaSpinner,
-  FaFile
+  FaFileAlt,
+  FaPaperPlane
 } from 'react-icons/fa';
 import proctorApi from '../../api/proctorApi';
 import complaintApi from '../../api/complaintApi';
@@ -323,7 +324,7 @@ export default function ProctorDashboard() {
                 to="/proctor/operational-reports"
                 className="flex items-center gap-3 p-3 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
               >
-                <FaFile className="w-4 h-4" />
+                <FaFileAlt className="w-4 h-4" />
                 <span>Submit Operational Report</span>
               </Link>
             </div>
