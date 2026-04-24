@@ -343,15 +343,17 @@ const submitApplication = async (req, res) => {
 
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
-    // Assignment policy: after strict FYDA verification passes, attempt immediate assignment.
-    // Addis Ababa is no longer delayed.
-    let status = 'Assigned';
-    let scheduledReleaseAt = null;
+    // Addis Ababa policy: verified Addis applicants wait 5 minutes, then background worker assigns.
+    // Other verified cities are assigned immediately.
+    const addisWaitMs = 5 * 60 * 1000;
+    const requiresAddisWait = isAddis;
+    let status = requiresAddisWait ? 'Waiting' : 'Assigned';
+    let scheduledReleaseAt = requiresAddisWait ? new Date(Date.now() + addisWaitMs) : null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
     
-    // Immediate assignment attempt for all verified applications.
+    // Immediate assignment attempt only when not in Addis waiting window.
 
     // ==================== SAVE APPLICATION ====================
     const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');

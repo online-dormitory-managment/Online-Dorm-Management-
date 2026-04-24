@@ -216,25 +216,35 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (userID && userID !== user.userID) {
-      const existing = await User.findOne({ userID });
+    const nextUserId = typeof userID === 'string' ? userID.trim() : '';
+    const nextName = typeof name === 'string' ? name.trim() : '';
+    const nextCampus = typeof campus === 'string' ? campus.trim() : '';
+    const nextEmail = typeof email === 'string' ? email.trim() : '';
+
+    if (nextUserId && nextUserId !== user.userID) {
+      const existing = await User.findOne({ userID: nextUserId });
       if (existing) {
         return res.status(400).json({ success: false, message: 'User ID already in use' });
       }
-      user.userID = userID;
+      user.userID = nextUserId;
     }
 
-    if (name) user.name = name;
-    if (campus) user.campus = campus;
-    if (email) {
+    if (nextName) user.name = nextName;
+    if (nextCampus) user.campus = nextCampus;
+    if (nextEmail) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+      if (!emailRegex.test(nextEmail)) {
         return res.status(400).json({ success: false, message: 'Invalid email format' });
       }
-      user.email = email;
+      user.email = nextEmail;
     }
 
     await user.save();
+
+    // Keep role-linked profile docs in sync (especially Student.fullName used in FYDA checks).
+    if (nextName && ['Student', 'EventPoster', 'Vendor'].includes(user.role)) {
+      await Student.findOneAndUpdate({ user: user._id }, { fullName: nextName });
+    }
 
     res.json({
       success: true,
