@@ -141,7 +141,9 @@ app.get('/api/health', (req, res) => {
 app.get('/api/debug-db', async (req, res) => {
   try {
     const mongoose = require('mongoose');
-    const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+    // Prefer MONGODB_URI. Ignore placeholder values like "${MONGODB_URI}".
+    const rawUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    const uri = rawUri && /^\$\{.+\}$/.test(String(rawUri).trim()) ? '' : rawUri;
     res.json({
       status: 'Diagnostic Info',
       envFound: !!uri,
