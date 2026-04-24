@@ -62,29 +62,11 @@ function extractAddressRegionFromBackOcr(backOcrText) {
  * Fuzzy matching: Check if word exists or if major chunk of it exists 
  * (helps with Tesseract typos like 'Addis Absba')
  */
-function fuzzyContains(source, target) {
+function strictContains(source, target) {
   const s = normalizeAscii(source);
   const t = normalizeAscii(target);
   if (!s || !t) return false;
-  if (s.includes(t) || t.includes(s)) return true;
-  
-  // For long words, tolerate 1-2 dropped/swapped characters
-  if (t.length >= 5 && s.length >= 5) {
-    // Check if the characters of 't' mostly exist in 's' in roughly the same order
-    let matchCount = 0;
-    let sIndex = 0;
-    for (let i = 0; i < t.length; i++) {
-        const foundAt = s.indexOf(t[i], sIndex);
-        if (foundAt !== -1 && foundAt - sIndex <= 3) { // Character must be somewhat nearby
-            matchCount++;
-            sIndex = foundAt + 1;
-        }
-    }
-    // E.g., for "bahirdar" (length 8), we need 6 characters to match in order
-    const requiredMatches = Math.floor(t.length * 0.75);
-    if (matchCount >= requiredMatches) return true;
-  }
-  return false;
+  return s.includes(t) || t.includes(s);
 }
 
 /** 
@@ -101,12 +83,7 @@ function cityMatchesBackOcr(city, backOcrText) {
   const addrSlice = extractAddressRegionFromBackOcr(backOcrText);
   const addrAscii = normalizeAscii(addrSlice);
 
-  if (fuzzyContains(fullAscii, cityKey) || fuzzyContains(addrAscii, cityKey)) return true;
-
-  const parts = rawCity.split(/\s+/).filter((p) => p.length >= 3);
-  for (const p of parts) {
-    if (fuzzyContains(fullAscii, p) || fuzzyContains(addrAscii, p)) return true;
-  }
+  if (strictContains(fullAscii, cityKey) || strictContains(addrAscii, cityKey)) return true;
 
   return false;
 }
@@ -153,7 +130,7 @@ function impliesFarAddis(city, backOcrText) {
   const c = normalizeAscii(city);
   const b = normalizeAscii(backOcrText);
   for (const kw of FAR_ADDIS_KEYWORDS) {
-    if (c.includes(kw) || b.includes(kw) || fuzzyContains(c, kw) || fuzzyContains(b, kw)) return true;
+    if (c.includes(kw) || b.includes(kw) || strictContains(c, kw) || strictContains(b, kw)) return true;
   }
   return false;
 }
@@ -181,5 +158,5 @@ module.exports = {
   backOcrImpliesAddisArea,
   impliesFarAddis,
   qualifiesForImmediateDorm,
-  fuzzyContains,
+  strictContains,
 };
