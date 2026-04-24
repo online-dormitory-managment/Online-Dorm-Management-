@@ -170,7 +170,7 @@
   border-radius: 10px;
 }
 
-.dark ::webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb {
   background: #334155;
 }
 
@@ -178,7 +178,7 @@
   background: #94a3b8;
 }
 
-.dark ::webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
 
