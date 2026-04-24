@@ -509,11 +509,19 @@ export default function PlacementRequestSimple() {
 
       if (status === 'Assigned') {
         toast.success('Success! You have been assigned a dorm room.');
+        await clearDraft();
+        navigate('/student-portal');
+      } else if (status === 'Waiting') {
+        toast.success('Application submitted! Please wait 5 minutes for automatic room assignment.', { duration: 6000, icon: '⏳' });
+        setExistingApp(res.application);
+        await clearDraft();
+        // Stay on this page to show the countdown timer
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         toast.success(res?.message || 'Submitted successfully.');
+        await clearDraft();
+        navigate('/student-portal');
       }
-      await clearDraft();
-      navigate('/student-portal');
     } catch (err) {
       toast.dismiss(loadingToast);
       let msg = 'Failed to submit. Please check your files and try again.';
@@ -647,29 +655,76 @@ export default function PlacementRequestSimple() {
 
           {/* Friendly status (if already submitted) */}
           {existingApp && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Current placement request</h3>
-              <p className="text-sm text-gray-700">
-                Status: <span className="font-semibold">{existingApp.status}</span>
-                {existingApp.city ? ` • City: ${existingApp.city}` : ''}
-              </p>
-              {existingApp.notes && (
-                <p className="mt-2 text-sm text-gray-600">Note: {existingApp.notes}</p>
+            <div className={`rounded-2xl border-2 p-6 mb-6 ${
+              existingApp.status === 'Waiting' 
+                ? 'bg-blue-50 border-blue-300 shadow-lg shadow-blue-100' 
+                : existingApp.status === 'Assigned'
+                  ? 'bg-emerald-50 border-emerald-300 shadow-lg shadow-emerald-100'
+                  : 'bg-white border-gray-200'
+            }`}>
+              {/* WAITING STATUS — Prominent countdown popup */}
+              {existingApp.status === 'Waiting' && (
+                <div className="text-center space-y-4">
+                  <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
+                    <FaCalendarAlt className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-blue-900">Please Wait — Room Assignment in Progress</h3>
+                  <p className="text-sm text-blue-700 max-w-md mx-auto">
+                    As an Addis Ababa applicant, your application requires a <strong>5-minute waiting period</strong> before automatic room assignment. 
+                    Your payment has been processed — <strong>no further action is needed</strong>.
+                  </p>
+                  {timeLeft ? (
+                    <div className="inline-flex items-center gap-3 bg-white rounded-2xl px-8 py-4 border-2 border-blue-200 shadow-sm">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping" />
+                      <span className="text-3xl font-black text-blue-700 tabular-nums tracking-wider">{timeLeft}</span>
+                      <span className="text-xs font-bold text-blue-500 uppercase">remaining</span>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-3 bg-emerald-50 rounded-2xl px-8 py-4 border-2 border-emerald-200">
+                      <FaSpinner className="w-5 h-5 text-emerald-600 animate-spin" />
+                      <span className="text-lg font-black text-emerald-700">Assigning your room now...</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-500 font-medium">
+                    This page will automatically refresh when your room is assigned.
+                  </p>
+                </div>
               )}
-              {existingApp.paymentStatus && existingApp.paymentStatus !== 'Not Applicable' && (
-                <p className="mt-2 text-sm text-gray-600">
-                  Payment: <span className="font-semibold">{existingApp.paymentStatus}</span>
-                  {existingApp.paymentNotes ? ` • ${existingApp.paymentNotes}` : ''}
-                </p>
+
+              {/* ASSIGNED STATUS — Success */}
+              {existingApp.status === 'Assigned' && (
+                <div className="text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
+                    <FaCheckCircle className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-emerald-900">Room Assigned!</h3>
+                  <p className="text-sm text-emerald-700">
+                    You have been assigned a dorm room. Check your room details in the Dashboard.
+                  </p>
+                </div>
               )}
-              {existingApp.originVerificationNote && (
-                <p className="mt-2 text-sm text-gray-600">
-                  FYDA scan: {existingApp.originVerified ? 'Verified' : 'Not verified'} • {existingApp.originVerificationNote}
-                </p>
+
+              {/* OTHER STATUSES — Simple display */}
+              {existingApp.status !== 'Waiting' && existingApp.status !== 'Assigned' && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Current placement request</h3>
+                  <p className="text-sm text-gray-700">
+                    Status: <span className="font-semibold">{existingApp.status}</span>
+                    {existingApp.city ? ` • City: ${existingApp.city}` : ''}
+                  </p>
+                  {existingApp.notes && (
+                    <p className="mt-2 text-sm text-gray-600">Note: {existingApp.notes}</p>
+                  )}
+                  {existingApp.paymentStatus && existingApp.paymentStatus !== 'Not Applicable' && (
+                    <p className="mt-2 text-sm text-gray-600">
+                      Payment: <span className="font-semibold">{existingApp.paymentStatus}</span>
+                    </p>
+                  )}
+                  <p className="mt-3 text-xs text-gray-500">
+                    If you need to fix something, you can submit again — your latest submission replaces the old one.
+                  </p>
+                </div>
               )}
-              <p className="mt-3 text-xs text-gray-500">
-                If you need to fix something, you can submit again — your latest submission replaces the old one.
-              </p>
             </div>
           )}
 
