@@ -132,17 +132,6 @@ export default function TopNav() {
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  
-  const userMenuItems = [
-    { label: 'My Profile', path: '/profile', icon: FaUser, color: 'text-slate-600' },
-    { label: 'Settings', path: '/settings', icon: FaCog, color: 'text-slate-600' },
-    // Only show Apply Event Access if student doesn't have the role
-    ...((role === 'Student' || role === 'Vendor') && role !== 'EventPoster' ? [
-      { label: 'Apply Event Access', path: '/apply-event-poster', icon: FaCalendarPlus, color: 'text-blue-600', divider: true }
-    ] : []),
-    { label: 'Reset Placement (Test)', action: handleResetApplication, icon: FaTrash, color: 'text-amber-600', developerOnly: true },
-    { label: 'Logout', path: '/logout', icon: FaSignOutAlt, color: 'text-rose-600', divider: true }
-  ];
 
   // Refs
   const menuRef = useRef(null);
@@ -272,6 +261,16 @@ export default function TopNav() {
       toast.error(err.message || 'Reset failed');
     }
   };
+
+  const userMenuItems = [
+    { label: 'My Profile', path: '/profile', icon: FaUser, color: 'text-slate-600' },
+    { label: 'Settings', path: '/settings', icon: FaCog, color: 'text-slate-600' },
+    ...((role === 'Student' || role === 'Vendor') && role !== 'EventPoster' ? [
+      { label: 'Apply Event Access', path: '/apply-event-poster', icon: FaCalendarPlus, color: 'text-blue-600', divider: true }
+    ] : []),
+    { label: 'Reset Placement (Test)', action: handleResetApplication, icon: FaTrash, color: 'text-amber-600', developerOnly: true },
+    { label: 'Logout', path: '/logout', icon: FaSignOutAlt, color: 'text-rose-600', divider: true }
+  ];
 
   const handleMenuClick = (item) => {
     if (item.path) {
