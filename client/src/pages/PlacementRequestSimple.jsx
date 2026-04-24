@@ -156,8 +156,7 @@ export default function PlacementRequestSimple() {
   const [draftLoaded, setDraftLoaded] = useState(false);
 
   const isAddis = useMemo(() => {
-    const v = String(city || '').toLowerCase();
-    return v.includes('addis') || v.includes('sheger') || v.includes('finfinne');
+    return String(city || '').trim().toLowerCase() === 'addis ababa';
   }, [city]);
 
   const isLikelyFarAddis = useMemo(() => impliesFarAddisFromCity(city), [city]);
@@ -495,7 +494,7 @@ export default function PlacementRequestSimple() {
 
       const status = res?.application?.status;
 
-      if (status === 'Waiting' || isAddis) {
+      if (status === 'Waiting') {
         // Addis Ababa Special Logic - Show Modal after actual submission
         if (!hasScheduledNotice) {
           setShowAddisWaitModal(true);
