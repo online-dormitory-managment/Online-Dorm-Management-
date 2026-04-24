@@ -2,31 +2,25 @@
  * FYDA back-side: focus on English/Latin; Amharic is stripped for matching.
  */
 
-function normalizeAscii(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^\x00-\x7F]/g, '')
-    .replace(/\s+/g, '')
-    .replace(/[^a-z0-9]/g, '');
-}
-
-/** English OCR often has "Address" / "Place of birth" — take text after Address for matching. */
-function extractAddressRegionFromBackOcr(ocrText) {
-  const t = String(ocrText || '');
-  const lower = t.toLowerCase();
-  const markers = ['address', 'place of residence', 'residence'];
-  let best = '';
-  for (const m of markers) {
-    const i = lower.indexOf(m);
-    if (i !== -1) {
-      const slice = t.slice(i, i + Math.min(600, t.length - i));
-      if (slice.length > best.length) best = slice;
-    }
+/** 
+ * Fuzzy matching: Check if word exists or if major chunk of it exists 
+ * (helps with Tesseract typos like 'Addis Absba')
+ */
+function fuzzyContains(source, target) {
+  const s = normalizeAscii(source);
+  const t = normalizeAscii(target);
+  if (!s || !t) return false;
+  if (s.includes(t) || t.includes(s)) return true;
+  
+  // For long words, check if at least 75% of characters match in sequence
+  if (t.length >= 6) {
+    const chunk = t.slice(0, Math.floor(t.length * 0.75));
+    if (s.includes(chunk)) return true;
   }
-  return best || t;
+  return false;
 }
 
-/**
+/** 
  * Declared city/address vs back-side OCR (full + address slice).
  */
 function cityMatchesBackOcr(city, backOcrText) {
@@ -40,22 +34,20 @@ function cityMatchesBackOcr(city, backOcrText) {
   const addrSlice = extractAddressRegionFromBackOcr(backOcrText);
   const addrAscii = normalizeAscii(addrSlice);
 
-  if (fullAscii.includes(cityKey) || addrAscii.includes(cityKey)) return true;
+  if (fuzzyContains(fullAscii, cityKey) || fuzzyContains(addrAscii, cityKey)) return true;
 
   const parts = rawCity.split(/\s+/).filter((p) => p.length >= 3);
   for (const p of parts) {
-    const k = normalizeAscii(p);
-    if (k.length >= 3 && (fullAscii.includes(k) || addrAscii.includes(k))) return true;
+    if (fuzzyContains(fullAscii, p) || fuzzyContains(addrAscii, p)) return true;
   }
 
-  const first = rawCity.split(/\s+/)[0];
-  const firstKey = normalizeAscii(first);
-  return !!(firstKey && firstKey.length >= 3 && (fullAscii.includes(firstKey) || addrAscii.includes(firstKey)));
+  return false;
 }
 
 function cityImpliesAddis(city) {
   const v = String(city || '').toLowerCase();
-  return v.includes('addis') || v.includes('sheger') || v.includes('finfinne');
+  // Synonyms for the capital region
+  return v.includes('addis') || v.includes('sheger') || v.includes('finfinne') || v.includes('finfine');
 }
 
 /**
@@ -73,42 +65,28 @@ function backOcrImpliesAddisArea(backOcrText) {
 }
 
 /**
- * "Far" Addis / outskirts: student or ID text suggests outer sub-cities / surrounding areas.
- * (Heuristic — expand as needed.)
+ * "Far" Addis / outskirts: areas that are legally Addis but traditionally far enough 
+ * to justify on-campus housing.
  */
 const FAR_ADDIS_KEYWORDS = [
-  'akaki',
-  'kality',
-  'kaliti',
-  'nifas',
-  'nifsilk',
-  'nifassilk',
-  'kolfe',
-  'keranio',
-  'gullele',
-  'yeka',
-  'burayu',
-  'legetafo',
-  'legeta',
-  'sebeta',
-  'sululta',
-  'holeta',
-  'sendafa',
-  'teji',
-  'ayertena',
-  'kotebe',
-  'saris',
-  'megenagna',
-  'lideta',
-  'nifassilklafto',
-  'lafto',
+  // Outer Sub-cities
+  'akaki', 'kality', 'kaliti', 'akakikality',
+  'nifassilk', 'nifas', 'nifsilk', 'lafto', 'nifassilklafto', 
+  'kolfe', 'keranio', 'kolfekeranio',
+  'yeka', 'abado', 'kotebe',
+  'gullele', 'shiro', 'meda',
+  
+  // Surrounding Oromia Special Zones (Sheger City)
+  'sebeta', 'burayu', 'legetafo', 'legeta', 'sululta', 'holeta',
+  'sendafa', 'dukem', 'gelan', 'bishoftu', 'debrezeit', 'pyassa',
+  'ayertena', 'saris', 'tulu', 'dimtu', 'hanna', 'mariam'
 ];
 
 function impliesFarAddis(city, backOcrText) {
   const c = normalizeAscii(city);
   const b = normalizeAscii(backOcrText);
   for (const kw of FAR_ADDIS_KEYWORDS) {
-    if (c.includes(kw) || b.includes(kw)) return true;
+    if (c.includes(kw) || b.includes(kw) || fuzzyContains(c, kw) || fuzzyContains(b, kw)) return true;
   }
   return false;
 }

@@ -211,6 +211,11 @@ const submitApplication = async (req, res) => {
     let originVerified = false;
     let verificationNote = '';
 
+    // LOGGING: Print full OCR text to console for debugging
+    console.log(`\n--- OCR DEBUG [${student.fullName}] ---`);
+    console.log(`Detected Address: ${backText || "[Empty]"}`);
+    console.log(`Applied City: ${city}`);
+
     if (backText && cityMatchesBackOcr(city, backText)) {
       originVerified = true;
       verificationNote = 'Auto-verified via FYDA OCR.';
@@ -222,16 +227,29 @@ const submitApplication = async (req, res) => {
       verificationNote = 'OCR could not match city. Manual review required.';
     }
 
-    const isOutside = !cityImpliesAddis(city);
-    const priority = qualifiesForImmediateDorm(city, backText);
+    const isAddis = cityImpliesAddis(city) || backOcrImpliesAddisArea(backText);
+    const isFar = impliesFarAddis(city, backText);
+    const requiresWait = isAddis && !isFar;
+
     let status = 'Waiting';
+    let scheduledReleaseAt = null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
-    const isAddis = cityImpliesAddis(city);
     
-    // UNIVERSAL RULE: All students MUST wait exactly 5 minutes for room assignment
-    const scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
+    // DECISION: Addis residents wait 5 mins; Others (Outside or Outskirts) get Assigned NOW
+    if (!isSelfSponsored) {
+      if (requiresWait) {
+        status = 'Waiting';
+        scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
+      } else {
+        status = 'Assigned'; // We will attempt to assign immediately below
+      }
+    } else {
+      // Self-sponsored always wait for payment verify before assignment
+      status = requiresWait ? 'Waiting' : 'Pending';
+      if (requiresWait) scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
+    }
 
     // ==================== SAVE APPLICATION ====================
     const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');
@@ -243,7 +261,8 @@ const submitApplication = async (req, res) => {
       nationalIdFront: rel(frontFile.path),
       nationalIdBack: rel(backFile.path),
       extractedAddress: extractAddressRegionFromBackOcr(backText) || backText.slice(0, 8000),
-      isOutsideAddisSheger: isOutside,
+      isOutsideAddisSheger: !isAddis,
+      isFarAddisOutskirts: isFar,
       paymentStatus,
       status,
       chapaTxRef,
@@ -255,14 +274,29 @@ const submitApplication = async (req, res) => {
     let application = await DormApplication.findOne({ student: student._id });
     if (application) {
       Object.assign(application, appPayload);
+      await application.save();
     } else {
-      application = new DormApplication(appPayload);
+      application = await DormApplication.create(appPayload);
     }
 
-    // NO IMMEDIATE ASSIGNMENT - Everyone waits 5 minutes
-    // Background worker in index.js handles everything now.
+    // NEW: If status became 'Assigned' right now, perform the actual room search
+    if (status === 'Assigned') {
+      try {
+        const success = await assignStudentToRoom(application, student);
+        if (!success) {
+          // If no room found, revert to Waiting so it can pick up later if rooms free up
+          application.status = 'Waiting';
+          application.scheduledReleaseAt = new Date(); // Process ASAP by worker
+          await application.save();
+        }
+      } catch (assignErr) {
+        console.error(`Immediate assignment failed for ${student.fullName}:`, assignErr.message);
+        application.status = 'Waiting';
+        application.scheduledReleaseAt = new Date();
+        await application.save();
+      }
+    }
 
-    await application.save();
     await application.populate('student assignedRoom');
 
     const message = student.sponsorship === 'Self-Sponsored'
