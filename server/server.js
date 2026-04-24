@@ -68,11 +68,19 @@ if (!cached) {
   cached = global.mongoose = { conn: null, promise: null };
 }
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/dormitory_db';
+// On Vercel/production, never fall back to localhost — it will always fail and surface as 500s.
+// Require an explicit connection string via env vars.
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 
 async function connectDB() {
   if (cached.conn) {
     return cached.conn;
+  }
+
+  if (!MONGODB_URI) {
+    const err = new Error('Missing MONGODB_URI/MONGO_URI environment variable');
+    err.code = 'MISSING_MONGODB_URI';
+    throw err;
   }
 
   if (!cached.promise) {
