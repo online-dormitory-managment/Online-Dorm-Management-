@@ -349,18 +349,12 @@ const submitApplication = async (req, res) => {
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
     
-    // DECISION: Addis residents wait 5 mins; Others (Outside or Outskirts) get Assigned NOW
-    if (!isSelfSponsored) {
-      if (requiresWait) {
-        status = 'Waiting';
-        scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
-      } else {
-        status = 'Assigned'; // We will attempt to assign immediately below
-      }
+    // DECISION: ONLY Addis Ababa waits 5 minutes. All other cities get immediate assignment attempt.
+    if (requiresWait) {
+      status = 'Waiting';
+      scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
     } else {
-      // Self-sponsored always wait for payment verify before assignment
-      status = requiresWait ? 'Waiting' : 'Pending';
-      if (requiresWait) scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
+      status = 'Assigned'; // immediate assignment attempt below
     }
 
     // ==================== SAVE APPLICATION ====================
@@ -411,12 +405,12 @@ const submitApplication = async (req, res) => {
 
     await application.populate('student assignedRoom');
 
-    const message = student.sponsorship === 'Self-Sponsored'
-      ? 'Please complete payment of 1,500 ETB to secure your dorm room.'
-      : application.status === 'Assigned'
-        ? 'Dorm automatically assigned!'
-        : application.status === 'Waiting'
-          ? 'Your application is in the mandatory 5-minute wait period for Addis Ababa residents. Please check back shortly.'
+    const message = application.status === 'Assigned'
+      ? 'Dorm automatically assigned!'
+      : application.status === 'Waiting'
+        ? 'Your application is in the mandatory 5-minute wait period for Addis Ababa residents. Please check back shortly.'
+        : student.sponsorship === 'Self-Sponsored'
+          ? 'Please complete payment of 1,500 ETB to secure your dorm room.'
           : 'Application submitted successfully.';
 
     return res.json({
