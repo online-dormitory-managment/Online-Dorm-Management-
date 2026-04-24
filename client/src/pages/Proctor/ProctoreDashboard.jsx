@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FaUsers,
   FaWrench,
@@ -15,20 +15,33 @@ import {
   FaCog,
   FaQuestionCircle,
   FaSignOutAlt,
-  FaSpinner
+  FaSpinner,
+  FaFileAlt
 } from 'react-icons/fa';
 import proctorApi from '../../api/proctorApi';
 import complaintApi from '../../api/complaintApi';
 import maintenanceApi from '../../api/maintenanceApi';
 import exitClearanceApi from '../../api/exitClearanceApi';
 import toast from 'react-hot-toast';
+import authApi from '../../api/authApi';
 
 export default function ProctorDashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
+    const user = authApi.getCurrentUser();
+    const role = user?.role || '';
+    if (role !== 'Proctor') {
+      if (role === 'SuperAdmin') navigate('/super-admin-dashboard');
+      else if (role === 'CampusAdmin') navigate('/dashboard');
+      else if (role === 'Student') navigate('/student-portal');
+      else navigate('/login');
+      return;
+    }
+
     let alive = true;
     (async () => {
       try {
