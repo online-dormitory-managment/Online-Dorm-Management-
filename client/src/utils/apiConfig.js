@@ -13,7 +13,15 @@ const isLocal = typeof window !== 'undefined' &&
  */
 export const getApiBaseUrl = () => {
   // If explicitly set via environment variable, use it
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const raw = import.meta.env.VITE_API_URL;
+  if (raw) {
+    const v = String(raw).trim();
+    // Accept relative "/api" as-is
+    if (v === '/api' || v.startsWith('/api/')) return v.replace(/\/+$/, '');
+    // If someone sets "http(s)://host" without "/api", append it.
+    if (/^https?:\/\//i.test(v) && !/\/api\/?$/i.test(v)) return v.replace(/\/+$/, '') + '/api';
+    return v.replace(/\/+$/, '');
+  }
   
   // Otherwise, detect environment
   return isLocal ? 'http://localhost:5000/api' : '/api';
