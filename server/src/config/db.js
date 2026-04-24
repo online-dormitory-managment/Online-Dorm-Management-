@@ -16,14 +16,17 @@ const connectDB = async () => {
       throw new Error('Database connection string is missing');
     }
 
-    const conn = await mongoose.connect(uri);
+    const conn = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 15000,
+      maxPoolSize: 10,
+      family: 4, // reduce SRV/DNS flakiness on some Windows networks
+    });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`❌ DB Error: ${error.message}`);
-    // Don't kill the process on Vercel
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
+    // Keep the process alive in dev so transient DNS/TLS outages can recover.
     throw error; // Rethrow so middleware can handle the 500 response
   }
 };
