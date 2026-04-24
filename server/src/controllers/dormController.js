@@ -174,24 +174,40 @@ const submitApplication = async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
     // === PARALLEL: OCR & Payment Initialization ===
-    // We run these in parallel to maximize the 10s Vercel window.
+    // Strict validation:
+    // 1) Student name must match FYDA front OCR
+    // 2) Declared city must match FYDA back OCR/address
     let backText = '';
-    let ocrTimedOut = false;
+    let frontText = '';
+    let frontOcrTimedOut = false;
+    let backOcrTimedOut = false;
     let paymentInfo = null;
 
     const parallelTasks = [
       (async () => {
         try {
-          backText = await tryOcrText(path.resolve(backFile.path), 7500); // Tight 7.5s limit
+          frontText = await tryOcrText(path.resolve(frontFile.path), 7500);
         } catch (ocrErr) {
           if (ocrErr.message === 'OCR_TIMEOUT') {
-            ocrTimedOut = true;
-            console.warn('OCR timed out after 7.5s, falling back to manual review.');
+            frontOcrTimedOut = true;
+            console.warn('Front OCR timed out after 7.5s.');
           } else {
-            console.error('OCR Error:', ocrErr.message);
+            console.error('Front OCR Error:', ocrErr.message);
           }
         }
-      })()
+      })(),
+      (async () => {
+        try {
+          backText = await tryOcrText(path.resolve(backFile.path), 7500);
+        } catch (ocrErr) {
+          if (ocrErr.message === 'OCR_TIMEOUT') {
+            backOcrTimedOut = true;
+            console.warn('Back OCR timed out after 7.5s.');
+          } else {
+            console.error('Back OCR Error:', ocrErr.message);
+          }
+        }
+      })(),
     ];
 
     const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
@@ -208,25 +224,45 @@ const submitApplication = async (req, res) => {
     // Wait for all processes to finish or timeout
     await Promise.all(parallelTasks);
 
-    // === VERIFICATION LOGIC ===
-    let originVerified = false;
-    let verificationNote = '';
+    // === STRICT VERIFICATION LOGIC ===
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: 'City is required and must match the FYDA back-side address.',
+      });
+    }
 
     // LOGGING: Print full OCR text to console for debugging
     console.log(`\n--- OCR DEBUG [${student.fullName}] ---`);
+    console.log(`Detected Front Text: ${frontText || "[Empty]"}`);
     console.log(`Detected Address: ${backText || "[Empty]"}`);
     console.log(`Applied City: ${city}`);
 
-    if (backText && cityMatchesBackOcr(city, backText)) {
-      originVerified = true;
-      verificationNote = 'Auto-verified via FYDA OCR.';
-    } else if (ocrTimedOut) {
-      originVerified = false;
-      verificationNote = 'OCR Timed out. Manual verification required.';
-    } else {
-      originVerified = false;
-      verificationNote = 'OCR could not match city. Manual review required.';
+    if (frontOcrTimedOut || backOcrTimedOut || !frontText || !backText) {
+      return res.status(400).json({
+        success: false,
+        message: 'Could not verify FYDA images. Please upload clearer front and back images and try again.',
+      });
     }
+
+    const nameMatches = nameLikelyOnId(student.fullName, frontText);
+    if (!nameMatches) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student name does not match the FYDA front-side text.',
+      });
+    }
+
+    const cityMatches = cityMatchesBackOcr(city, backText);
+    if (!cityMatches) {
+      return res.status(400).json({
+        success: false,
+        message: 'Declared city does not match the FYDA back-side address.',
+      });
+    }
+
+    const originVerified = true;
+    const verificationNote = 'Strictly verified: FYDA front name and back-side city match.';
 
     const isAddis = cityImpliesAddis(city) || backOcrImpliesAddisArea(backText);
     const isFar = impliesFarAddis(city, backText);
