@@ -264,10 +264,42 @@ setInterval(async () => {
             // Wait period is over, but they haven't paid. Move to PaymentPending.
             app.status = 'PaymentPending';
             console.log(`⏱️ Wait period over for ${student.fullName} (Self-Sponsored). Moving to PaymentPending.`);
+            if (student?.user) {
+              await Notification.create({
+                user: student.user,
+                type: 'DormApplication',
+                title: 'Payment required',
+                message: 'Your 5-minute wait is over. Please complete the 1,500 ETB payment to secure your dorm assignment.',
+                data: { applicationId: String(app._id) },
+              });
+            }
           } else {
             // Government or already paid Self-Sponsored -> Try assignment
             const success = await assignStudentToRoom(app, student);
             console.log(`✅ Automated Assignment for ${student.fullName}: ${success ? 'SUCCESS' : 'PENDING (No Room)'}`);
+            if (student?.user) {
+              if (success && app.assignedRoom) {
+                await app.populate('assignedRoom');
+                await Notification.create({
+                  user: student.user,
+                  type: 'DormApplication',
+                  title: 'Dorm assigned',
+                  message: `Your dorm has been assigned automatically after the 5-minute wait. Room: ${app.assignedRoom.roomNumber || app.assignedRoom.name || 'Assigned'}.`,
+                  data: {
+                    applicationId: String(app._id),
+                    roomId: String(app.assignedRoom._id),
+                  },
+                });
+              } else {
+                await Notification.create({
+                  user: student.user,
+                  type: 'DormApplication',
+                  title: 'Assignment pending',
+                  message: 'Your 5-minute wait is over, but no room is available yet. We will continue assigning when space becomes available.',
+                  data: { applicationId: String(app._id) },
+                });
+              }
+            }
           }
           await app.save();
         } catch (assignErr) {

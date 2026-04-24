@@ -335,16 +335,21 @@ const submitApplication = async (req, res) => {
 
     const originVerified = true;
 
-    // No delayed-wait policy: all validated applications attempt immediate assignment.
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
-    let status = 'Assigned';
-    let scheduledReleaseAt = null;
+    // Addis Ababa policy: if (and only if) the student explicitly applied as "Addis Ababa"
+    // AND we already passed strict FYDA back-side city match, put the application into a 5-minute wait.
+    // The background worker will auto-assign after the timer and create a notification.
+    const addisWaitMs = 5 * 60 * 1000;
+    const requiresAddisWait = isAddis;
+
+    let status = requiresAddisWait ? 'Waiting' : 'Assigned';
+    let scheduledReleaseAt = requiresAddisWait ? new Date(Date.now() + addisWaitMs) : null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
     
-    // Immediate assignment attempt for everyone.
+    // Immediate assignment attempt only when not in Addis wait.
 
     // ==================== SAVE APPLICATION ====================
     const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');
@@ -396,6 +401,8 @@ const submitApplication = async (req, res) => {
 
     const message = application.status === 'Assigned'
       ? 'Dorm automatically assigned!'
+      : application.status === 'Waiting'
+        ? 'Application submitted. Addis Ababa applications are assigned automatically after 5 minutes. You will receive a notification.'
       : application.status === 'Pending'
         ? 'Application submitted. Assignment will continue when space is available.'
         : student.sponsorship === 'Self-Sponsored'
