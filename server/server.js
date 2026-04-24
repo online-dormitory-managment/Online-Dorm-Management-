@@ -127,19 +127,21 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Debug uploads endpoint
-app.get('/api/debug-uploads', (req, res) => {
+// Debug database endpoint
+app.get('/api/debug-db', async (req, res) => {
   try {
-    const fs = require('fs');
-    const structure = fs.readdirSync(uploadsDir);
+    const mongoose = require('mongoose');
+    const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
     res.json({
-      uploadsDir,
-      __dirname,
-      cwd: process.cwd(),
-      structure
+      status: 'Diagnostic Info',
+      envFound: !!uri,
+      uriProvided: uri ? `${uri.substring(0, 15)}...` : 'Not Found',
+      readyState: mongoose.connection.readyState, // 0 = disc, 1 = conn, 2 = conn-ing
+      dbName: mongoose.connection.name,
+      nodeEnv: process.env.NODE_ENV
     });
   } catch (err) {
-    res.status(500).json({ error: err.message, uploadsDir });
+    res.status(500).json({ error: err.message });
   }
 });
 
