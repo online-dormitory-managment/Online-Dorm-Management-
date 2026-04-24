@@ -55,6 +55,29 @@ export default function Login() {
       const customRedirect = searchParams.get('redirect');
       
       let redirectPath = customRedirect || '/';
+      const roleDefaultRoute = (() => {
+        switch (role) {
+          case 'Student': return '/student-portal';
+          case 'Proctor': return '/proctor/dashboard';
+          case 'CampusAdmin': return '/dashboard';
+          case 'SuperAdmin': return '/super-admin-dashboard';
+          case 'EventPoster': return '/events-post';
+          case 'Vendor': return '/vendor-dashboard';
+          case 'MarketPlaceModerator': return '/marketplace-post';
+          default: return '/';
+        }
+      })();
+
+      const roleCanAccessRedirect = (targetPath) => {
+        if (!targetPath) return false;
+        if (targetPath.startsWith('/proctor')) return role === 'Proctor';
+        if (targetPath.startsWith('/super-admin')) return role === 'SuperAdmin';
+        if (targetPath.startsWith('/dashboard') || targetPath.startsWith('/students') || targetPath.startsWith('/reports')) {
+          return role === 'CampusAdmin' || role === 'SuperAdmin';
+        }
+        if (targetPath.startsWith('/student-portal') || targetPath.startsWith('/placement-request')) return role === 'Student';
+        return true;
+      };
       
       if (!customRedirect) {
 
@@ -88,6 +111,11 @@ export default function Login() {
           }
       }
     }
+
+      // Prevent stale/foreign redirects (e.g. SuperAdmin redirected to /proctor/dashboard)
+      if (customRedirect && !roleCanAccessRedirect(customRedirect)) {
+        redirectPath = roleDefaultRoute;
+      }
 
          // Force full page reload to ensure axios and all contexts pickup the new token properly
       window.location.href = redirectPath;
