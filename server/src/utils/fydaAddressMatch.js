@@ -2,6 +2,62 @@
  * FYDA back-side: focus on English/Latin; Amharic is stripped for matching.
  */
 
+/**
+ * Normalize text into a compact ASCII-only key suitable for matching OCR output.
+ * - lowercases
+ * - removes diacritics
+ * - removes non-ascii characters (e.g. Amharic)
+ * - strips punctuation/whitespace
+ */
+function normalizeAscii(input) {
+  if (input == null) return '';
+  const s = String(input)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // strip diacritics
+    .toLowerCase();
+
+  // Keep only ASCII letters/digits; remove spaces/punctuation
+  return s.replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Attempt to extract the most relevant "address-like" region from back-side OCR text.
+ * Heuristic only — returns a substring that tends to contain location fields.
+ */
+function extractAddressRegionFromBackOcr(backOcrText) {
+  const raw = String(backOcrText || '');
+  if (!raw) return '';
+
+  // Look for common location markers in OCR output
+  const lowered = raw.toLowerCase();
+  const markers = [
+    'address',
+    'addis ababa',
+    'subcity',
+    'sub-city',
+    'woreda',
+    'wereda',
+    'kebele',
+    'house',
+    'region',
+    'zone',
+    'city',
+  ];
+
+  let start = 0;
+  for (const m of markers) {
+    const idx = lowered.indexOf(m);
+    if (idx !== -1) {
+      start = idx;
+      break;
+    }
+  }
+
+  // Capture a reasonable window; avoid very large payloads
+  const windowSize = 2000;
+  return raw.slice(start, start + windowSize);
+}
+
 /** 
  * Fuzzy matching: Check if word exists or if major chunk of it exists 
  * (helps with Tesseract typos like 'Addis Absba')

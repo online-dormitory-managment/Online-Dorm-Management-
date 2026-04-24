@@ -72,11 +72,6 @@ const loginUser = async (req, res) => {
     console.log(`🔍 Password check for ${user.userID}: ${isPasswordValid ? 'MATCH' : 'FAIL'}`);
     if (!isPasswordValid) {
       console.log('❌ Invalid password for user:', userId);
-      try {
-        if (!process.env.VERCEL) {
-          fs.appendFileSync(path.join(process.cwd(), 'login_debug_log.txt'), logMsg);
-        }
-      } catch (e) {}
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
