@@ -10,6 +10,7 @@ const {
   getMyApplication,
   assignPendingApplications,
   verifyChapaPayment,
+  resetMyApplication,
 } = require('../controllers/dormController');
 
 const uploadRoot = path.join(process.cwd(), 'uploads', 'dorm-applications');
@@ -50,7 +51,7 @@ router.use(authorize('Student', 'EventPoster', 'Vendor'));
 router.get('/application', getMyApplication);
 router.get('/my-application', getMyApplication);
 
-router.post('/reset-my-application', protect, resetMyApplication);
+router.post('/reset-my-application', resetMyApplication);
 
 router.post(
   '/application',

@@ -6,7 +6,10 @@ const connectDB = async () => {
     // If we're already connected, don't re-connect
     if (mongoose.connection.readyState >= 1) return;
 
-    const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+    // Prefer MONGODB_URI. Some environments set MONGO_URI to a placeholder like "${MONGODB_URI}"
+    // which would break the connection if chosen first.
+    const rawMongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    const uri = rawMongoUri && /^\$\{.+\}$/.test(rawMongoUri.trim()) ? '' : rawMongoUri;
     
     if (!uri) {
       console.error('❌ MONGODB_URI/MONGO_URI is not defined in environment variables');

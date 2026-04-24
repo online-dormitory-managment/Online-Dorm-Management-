@@ -20,6 +20,7 @@ yarn-error.log*
 *.log
 server/server_debug.log
 server/error_log.txt
+server/login_debug_log.txt
 
 # Editor / OS
 .vscode/
