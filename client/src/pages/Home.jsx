@@ -87,7 +87,9 @@ export default function Home() {
         const data = await eventApi.list();
         setEvents((data || []).slice(0, 10));
       } catch (err) {
-        console.error('Failed to load events for homepage', err);
+        const msg = err.response?.data?.message || err.message;
+        console.error('❌ Failed to load events for homepage:', msg);
+        if (err.response?.data?.error) console.error('🔍 Detail:', err.response.data.error);
       }
     })();
   }, []);
@@ -98,7 +100,9 @@ export default function Home() {
       const data = await marketplaceApi.listPublic({ limit: 6, search: query });
       setMarketItems(data || []);
     } catch (err) {
-      console.error('Home marketplace fetch error:', err);
+      const msg = err.response?.data?.message || err.message;
+      console.error('❌ Home marketplace fetch error:', msg);
+      if (err.response?.data?.error) console.error('🔍 Detail:', err.response.data.error);
     } finally {
       setMarketLoading(false);
     }
@@ -110,7 +114,9 @@ export default function Home() {
       const data = await lostFoundApi.listPublic({ limit: 6, search: query });
       setLostItems(data || []);
     } catch (err) {
-      console.error('Home lostFound fetch error:', err);
+      const msg = err.response?.data?.message || err.message;
+      console.error('❌ Home lostFound fetch error:', msg);
+      if (err.response?.data?.error) console.error('🔍 Detail:', err.response.data.error);
     } finally {
       setLostLoading(false);
     }

@@ -30,7 +30,9 @@ const authApi = {
       return response.data;
       
     } catch (error) {
-      console.error('Login failed:', error.message);
+      const serverMsg = error.response?.data?.message || error.message;
+      console.error('❌ Login failed:', serverMsg);
+      if (error.response?.data?.error) console.error('🔍 Server Detail:', error.response.data.error);
       throw error;
     }
   },
