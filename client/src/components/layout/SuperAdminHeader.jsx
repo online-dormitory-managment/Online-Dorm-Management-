@@ -8,7 +8,7 @@ import {
   FaUsersCog,
   FaFileInvoice,
   FaShieldAlt,
-  FaFileAlt,
+  FaFile,
   FaTrash,
   FaCheck,
   FaChevronDown,
@@ -133,7 +133,7 @@ export default function SuperAdminHeader() {
     { path: '/super-admin/proctors', label: 'Staff Directory', icon: FaShieldAlt },
     { path: '/super-admin/buildings', label: 'Infrastructure', icon: FaUniversity },
     { path: '/super-admin/reports', label: 'Analytics', icon: FaFileInvoice },
-    { path: '/super-admin/operational-reports', label: 'Reports', icon: FaFileAlt }
+    { path: '/super-admin/operational-reports', label: 'Reports', icon: FaFile }
   ];
 
   return (
@@ -212,7 +212,7 @@ export default function SuperAdminHeader() {
                           )}
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                              <FaFileAlt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              <FaFile className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-slate-900 dark:text-white mb-0.5 truncate">{n.title}</p>

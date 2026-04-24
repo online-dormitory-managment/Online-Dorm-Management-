@@ -16,7 +16,7 @@ import {
   FaChartLine,
   FaClipboardList,
   FaExclamationTriangle,
-  FaFileAlt,
+  FaFile,
   FaCheckCircle,
   FaClock,
   FaPaperPlane,

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   FaSearch,
   FaFilter,
-  FaFileAlt,
+  FaFile,
   FaDownload,
   FaPrint,
   FaStamp,
@@ -533,7 +533,7 @@ const StudentExit = () => {
               <p className="text-2xl font-bold text-gray-800 mt-1">{exitApplications.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <FaFileAlt className="w-6 h-6 text-blue-600" />
+              <FaFile className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>

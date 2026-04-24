@@ -15,7 +15,7 @@ import {
   FaGem,
   FaBook,
   FaKey,
-  FaFileAlt,
+  FaFile,
   FaEllipsisH,
   FaTrash,
   FaCheckCircle
@@ -133,7 +133,7 @@ export default function ReportLostItem() {
     { id: 'accessories', label: 'Accessories', icon: FaGem, color: 'text-rose-600', bg: 'bg-rose-50' },
     { id: 'books', label: 'Books', icon: FaBook, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: 'keys', label: 'Keys', icon: FaKey, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { id: 'documents', label: 'Documents', icon: FaFileAlt, color: 'text-slate-600', bg: 'bg-slate-50' },
+    { id: 'documents', label: 'Documents', icon: FaFile, color: 'text-slate-600', bg: 'bg-slate-50' },
     { id: 'other', label: 'Other', icon: FaEllipsisH, color: 'text-slate-400', bg: 'bg-slate-50' }
   ];
 

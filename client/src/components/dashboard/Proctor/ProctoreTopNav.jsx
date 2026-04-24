@@ -22,7 +22,7 @@ import {
   FaDoorOpen,
   FaChartBar,
   FaTachometerAlt,
-  FaFileAlt,
+  FaFile,
   FaQrcode,
   FaTrash,
   FaCheck
@@ -82,7 +82,7 @@ const menuItems = [
   {
     id: 'operational-reports',
     label: 'Reports',
-    icon: FaFileAlt,
+    icon: FaFile,
     path: '/proctor/operational-reports',
     hasNotification: false
   }

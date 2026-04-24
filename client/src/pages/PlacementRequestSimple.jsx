@@ -17,7 +17,7 @@ import {
   FaUniversity,
   FaCalendarAlt,
   FaVenusMars,
-  FaFileAlt,
+  FaFile,
   FaShieldAlt,
   FaArrowRight,
   FaSpinner,
@@ -801,7 +801,7 @@ export default function PlacementRequestSimple() {
               <div className="bg-white rounded-2xl border border-amber-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                    <FaFileAlt className="text-amber-600" />
+                    <FaFile className="text-amber-600" />
                     Additional Letter <span className="text-rose-500">*</span>
                   </h3>
                   {addisLetter && <FaCheckCircle className="text-emerald-500 w-4 h-4" />}
@@ -969,7 +969,7 @@ export default function PlacementRequestSimple() {
                       <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                            <FaFileAlt className="text-blue-600 w-4 h-4" />
+                            <FaFile className="text-blue-600 w-4 h-4" />
                           </div>
                           <span className="text-xs font-bold text-blue-800 truncate max-w-[150px]">{paymentReceipt.name}</span>
                         </div>

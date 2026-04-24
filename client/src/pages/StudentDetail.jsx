@@ -8,7 +8,7 @@ import {
   FaFileImage,
   FaFilePdf,
   FaTimes,
-  FaFileAlt,
+  FaFile,
   FaWheelchair,
   FaSpinner
 } from 'react-icons/fa';
@@ -372,7 +372,7 @@ export default function StudentDetail() {
                 {application.supportingDocuments.map((doc, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <FaFileAlt className="w-4 h-4 text-slate-400" />
+                      <FaFile className="w-4 h-4 text-slate-400" />
                       <span className="text-xs text-slate-600">Document {index + 1}</span>
               </div>
                     <a

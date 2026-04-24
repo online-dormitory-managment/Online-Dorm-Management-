@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import {
   FaDoorOpen,
-  FaFileAlt,
+  FaFile,
   FaTools,
   FaUserGraduate,
   FaUsers,
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
         value: s?.pendingApplications ?? '-', 
         change: 'Need review', 
         trend: 'warning', 
-        icon: FaFileAlt, 
+        icon: FaFile, 
         color: 'text-rose-600',
         bg: 'bg-rose-50'
       }

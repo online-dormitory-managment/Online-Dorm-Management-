@@ -14,7 +14,7 @@ import {
   FaDoorOpen,
   FaChevronRight,
   FaTimesCircle,
-  FaFileAlt,
+  FaFile,
   FaHistory
 } from 'react-icons/fa';
 import studentApi from '../api/studentApi';
@@ -545,7 +545,7 @@ export default function ExitClearance() {
             ) : (
               <div className="bg-white rounded-[2.5rem] border border-dashed border-slate-200 p-20 text-center">
                 <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <FaFileAlt className="text-slate-300 w-8 h-8" />
+                  <FaFile className="text-slate-300 w-8 h-8" />
                 </div>
                 <h3 className="font-black text-slate-900 mb-2">No Applications Found</h3>
                 <p className="text-sm text-slate-500 max-w-xs mx-auto mb-8">You haven&apos;t submitted any exit clearance requests yet.</p>

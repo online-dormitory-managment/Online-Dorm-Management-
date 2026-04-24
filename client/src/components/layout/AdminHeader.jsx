@@ -6,7 +6,7 @@ import {
   FaUsers,
   FaHouseUser,
   FaChartPie,
-  FaFileAlt,
+  FaFile,
   FaTrash,
   FaCheck,
   FaChevronDown,
@@ -131,9 +131,9 @@ export default function AdminHeader() {
     { path: '/students', label: 'Students', icon: FaUsers },
     { path: '/staff-management', label: 'Proctors', icon: FaUsers }, // Reusing FaUsers or similar
     { path: '/building-management', label: 'Blocks', icon: FaHouseUser },
-    { path: '/assign-blocks', label: 'Assignments', icon: FaFileAlt },
+    { path: '/assign-blocks', label: 'Assignments', icon: FaFile },
     { path: '/reports', label: 'Analytics', icon: FaChartPie },
-    { path: '/operational-reports', label: 'Reports', icon: FaFileAlt },
+    { path: '/operational-reports', label: 'Reports', icon: FaFile },
   ];
 
   return (
@@ -213,7 +213,7 @@ export default function AdminHeader() {
                           )}
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-lg bg-primary-light flex items-center justify-center shrink-0">
-                              <FaFileAlt className="w-4 h-4 text-primary" />
+                              <FaFile className="w-4 h-4 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-slate-900 mb-0.5 truncate">{n.title}</p>

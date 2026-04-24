@@ -5,7 +5,7 @@ import {
   FaCheckCircle, 
   FaClock, 
   FaExclamationCircle, 
-  FaFileAlt,
+  FaFile,
   FaUser,
   FaBuilding,
   FaSpinner,
@@ -118,7 +118,7 @@ export default function OperationalReports() {
     { label: 'Logistics', icon: <FaBriefcase />, color: 'text-blue-500' },
     { label: 'Student Conduct', icon: <FaUser />, color: 'text-rose-500' },
     { label: 'Health', icon: <FaHeartbeat />, color: 'text-emerald-500' },
-    { label: 'Other', icon: <FaFileAlt />, color: 'text-slate-500' }
+    { label: 'Other', icon: <FaFile />, color: 'text-slate-500' }
   ];
 
   const priorities = [
@@ -413,7 +413,7 @@ export default function OperationalReports() {
                              report.status === 'Pending' ? 'bg-amber-50 text-amber-500' : 
                              report.status === 'Reviewed' ? 'bg-blue-50 text-blue-500' : 'bg-emerald-50 text-emerald-500'
                           }`}>
-                            <FaFileAlt />
+                            <FaFile />
                           </div>
                           <div>
                             <div className="flex items-center gap-3 mb-1">
