@@ -235,113 +235,30 @@ const submitApplication = async (req, res) => {
     const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // === PARALLEL: OCR & Payment Initialization ===
-    // Strict validation:
-    // 1) Student name must match FYDA front OCR
-    // 2) Declared city must match FYDA back OCR/address
-    let backText = '';
-    let frontText = '';
-    let frontOcrTimedOut = false;
-    let backOcrTimedOut = false;
+    if (!city) {
+      return res.status(400).json({ success: false, message: 'City is required.' });
+    }
+
+    // === Payment Initialization (if self-sponsored) ===
     let paymentInfo = null;
-
-    const parallelTasks = [
-      (async () => {
-        try {
-          frontText = await tryOcrText(path.resolve(frontFile.path), 15000);
-        } catch (ocrErr) {
-          if (ocrErr.message === 'OCR_TIMEOUT') {
-            frontOcrTimedOut = true;
-            console.warn('Front OCR timed out after 15s.');
-          } else {
-            console.error('Front OCR Error:', ocrErr.message);
-          }
-        }
-      })(),
-      (async () => {
-        try {
-          backText = await tryOcrText(path.resolve(backFile.path), 15000);
-        } catch (ocrErr) {
-          if (ocrErr.message === 'OCR_TIMEOUT') {
-            backOcrTimedOut = true;
-            console.warn('Back OCR timed out after 15s.');
-          } else {
-            console.error('Back OCR Error:', ocrErr.message);
-          }
-        }
-      })(),
-    ];
-
     const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
     if (isSelfSponsored) {
-      parallelTasks.push((async () => {
-        try {
-          paymentInfo = await initializeChapaPayment(student, 1500);
-        } catch (e) {
-          console.error('Chapa initialization failed:', e.message);
-        }
-      })());
-    }
-
-    // Wait for all processes to finish or timeout
-    await Promise.all(parallelTasks);
-
-    // === SOFT VERIFICATION LOGIC (OCR is best-effort, never blocks) ===
-    if (!city) {
-      return res.status(400).json({
-        success: false,
-        message: 'City is required.',
-      });
-    }
-
-    // LOGGING: Print full OCR text to console for debugging
-    console.log(`\n--- OCR DEBUG [${student.fullName}] ---`);
-    console.log(`Detected Front Text: ${frontText || "[Empty]"}`);
-    console.log(`Detected Address: ${backText || "[Empty]"}`);
-    console.log(`Applied City: ${city}`);
-
-    let verificationNote = '';
-    let originVerified = false;
-    let finalCity = city;
-
-    // OCR timed out or returned empty — skip all checks, proceed with declared city
-    if (frontOcrTimedOut || backOcrTimedOut || !frontText || !backText) {
-      const reason = (frontOcrTimedOut || backOcrTimedOut) ? 'OCR timed out' : 'OCR returned empty text';
-      verificationNote = `${reason}. Proceeding with declared city "${city}". Manual review recommended.`;
-      console.warn(`⚠️ ${verificationNote}`);
-    } else {
-      // Name check (soft — log only)
-      const nameMatches =
-        nameLikelyOnId(student.fullName, frontText) ||
-        nameLikelyOnId(student?.user?.name, frontText);
-      if (!nameMatches) {
-        verificationNote = `Name may not match FYDA front-side. Declared: "${student.fullName}". `;
-        console.warn(`⚠️ Name mismatch for ${student.fullName}`);
-      }
-
-      // City check (soft — try strict, then fuzzy, then accept declared)
-      const cityMatches = strictCityMatchFromBackOcr(city, backText);
-      if (cityMatches) {
-        originVerified = true;
-        verificationNote += 'Strictly verified: FYDA front name and back-side city match.';
-      } else {
-        const fuzzyMatch = cityMatchesBackOcr(city, backText);
-        const suggested = citySuggestionFromBackOcr(backText);
-        if (fuzzyMatch && suggested) {
-          finalCity = suggested;
-          originVerified = true;
-          verificationNote += `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
-        } else {
-          // City didn't match, but we still proceed with declared city
-          verificationNote += `City "${city}" could not be verified against FYDA back-side OCR${suggested ? ` (OCR detected: "${suggested}")` : ''}. Using declared city. Manual review recommended.`;
-          console.warn(`⚠️ City mismatch for ${student.fullName}: declared "${city}", OCR suggested: "${suggested || 'none'}"`);
-        }
+      try {
+        paymentInfo = await initializeChapaPayment(student, 1500);
+      } catch (e) {
+        console.error('Chapa initialization failed:', e.message);
       }
     }
+
+    // === City Verification: Trust declared city, FYDA images stored for admin review ===
+    const finalCity = city;
+    const originVerified = false; // Admin can verify manually from uploaded FYDA images
+    const verificationNote = `Declared city: "${city}". FYDA images uploaded for manual verification.`;
+    console.log(`📋 Application from ${student.fullName}: city="${city}", selfSponsored=${isSelfSponsored}`);
 
 
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
-    const isFar = impliesFarAddis(finalCity, backText);
+    const isFar = impliesFarAddis(finalCity, '');
     // Addis Ababa policy: verified Addis applicants wait 5 minutes, then background worker assigns.
     // Other verified cities are assigned immediately.
     const addisWaitMs = 5 * 60 * 1000;
