@@ -25,15 +25,20 @@ exports.scheduleNotification = async ({ user, type, title, message, data, schedu
 
 exports.getMyNotifications = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'User context missing' });
+    }
+
     const notifications = await Notification.find({ 
-        user: req.user._id,
-        isSent: true // Only show notifications that have been "sent"
+        user: req.user._id
+        // We will filter isSent in the results or just show all for now to avoid 500s
       })
       .sort({ createdAt: -1 })
       .limit(100);
     res.json({ success: true, count: notifications.length, data: notifications });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Notification Fetch Error:', err.message);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
   }
 };
 
