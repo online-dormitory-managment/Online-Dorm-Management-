@@ -23,6 +23,7 @@ const eventApi = {
     form.append('location', payload.location);
     form.append('description', payload.description || '');
     form.append('category', payload.category || 'Other');
+    if (payload.registrationLink) form.append('registrationLink', payload.registrationLink);
     if (payload.eventPosterID) form.append('eventPosterID', payload.eventPosterID);
     if (payload.image) form.append('image', payload.image);
 
@@ -37,6 +38,7 @@ const eventApi = {
     if (payload.location) form.append('location', payload.location);
     if (payload.description) form.append('description', payload.description);
     if (payload.category) form.append('category', payload.category);
+    if (payload.registrationLink !== undefined) form.append('registrationLink', payload.registrationLink);
     if (payload.eventPosterID) form.append('eventPosterID', payload.eventPosterID);
     if (payload.image instanceof File) form.append('image', payload.image);
 

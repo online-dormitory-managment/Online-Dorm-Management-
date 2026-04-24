@@ -433,7 +433,7 @@ const getMyApplication = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
-    const application = await DormApplication.findOne({ student: student._id }).populate(
+    let application = await DormApplication.findOne({ student: student._id }).populate(
       'student assignedRoom'
     );
 
@@ -441,15 +441,43 @@ const getMyApplication = async (req, res) => {
       return res.json({ success: true, application: null, message: 'No application submitted yet' });
     }
 
+    // AUTO-ASSIGN: If waiting period has expired, assign room now
+    if (application.status === 'Waiting' && application.scheduledReleaseAt) {
+      const releaseTime = new Date(application.scheduledReleaseAt).getTime();
+      if (Date.now() >= releaseTime) {
+        console.log(`⏰ Wait expired for ${student.fullName} — auto-assigning now...`);
+        try {
+          const success = await assignStudentToRoom(application, student);
+          if (success) {
+            await application.save();
+            // Send notification
+            try {
+              await Notification.create({
+                user: req.user._id,
+                type: 'DormApplication',
+                title: '🎉 Room Assigned!',
+                message: `You have been assigned a dorm room after the waiting period.`,
+                isSent: true
+              });
+            } catch (notifErr) {
+              console.error('Notification error:', notifErr.message);
+            }
+          } else {
+            application.status = 'Pending';
+            application.scheduledReleaseAt = null;
+            await application.save();
+          }
+          // Re-populate after changes
+          application = await DormApplication.findOne({ student: student._id }).populate('student assignedRoom');
+        } catch (assignErr) {
+          console.error(`Auto-assign on poll failed for ${student.fullName}:`, assignErr.message);
+        }
+      }
+    }
+
     return res.json({ success: true, application });
   } catch (err) {
     console.error(err);
-    try {
-      require('fs').appendFileSync(
-        require('path').join(process.cwd(), 'error_log.txt'),
-        new Date().toISOString() + ' getMyApplication Error: ' + err.stack + '\n\n'
-      );
-    } catch (e) {}
     return res.status(500).json({ success: false, message: err.message });
   }
 };

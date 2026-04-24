@@ -6,7 +6,8 @@ import {
   FaMapMarkerAlt,
   FaChevronRight,
   FaChevronDown,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaExternalLinkAlt
 } from 'react-icons/fa';
 import DashboardLayout from '../components/dashboard/Students/DashboardLayout';
 import eventApi from '../api/eventApi';
@@ -53,6 +54,7 @@ export default function Events() {
             time: e.time,
             location: e.location,
             description: e.description,
+            registrationLink: e.registrationLink || '',
             image: e.image
           };
         });
@@ -174,10 +176,22 @@ export default function Events() {
                     </p>
                     <div className="flex justify-between items-center text-xs border-t border-slate-50 pt-3">
                       <span className="font-semibold text-slate-500">{event.time}</span>
-                      <button className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors">
-                        <span>Details</span>
-                        <FaChevronRight className="w-3 h-3" />
-                      </button>
+                      {event.registrationLink ? (
+                        <a
+                          href={event.registrationLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <FaExternalLinkAlt className="w-2.5 h-2.5" />
+                          Register Here
+                        </a>
+                      ) : (
+                        <button className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                          <span>Details</span>
+                          <FaChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
