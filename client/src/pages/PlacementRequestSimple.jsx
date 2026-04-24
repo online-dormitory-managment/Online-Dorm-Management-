@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/dashboard/Students/DashboardLayout';
 import { dormApi } from '../api/dormApi';
@@ -152,6 +152,7 @@ export default function PlacementRequestSimple() {
   const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'error', 'verifying'
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const lastVerifiedTxRef = useRef(null);
 
   const isAddis = useMemo(() => {
     return String(city || '').trim().toLowerCase() === 'addis ababa';
@@ -292,8 +293,14 @@ export default function PlacementRequestSimple() {
                         localStorage.getItem('pending_chapa_tx_ref');
     
     // Trigger verification if any transaction reference is detected
-    if (searchTxRef && paymentStatus !== 'verifying' && !isPaid) {
+    if (
+      searchTxRef &&
+      paymentStatus !== 'verifying' &&
+      !isPaid &&
+      lastVerifiedTxRef.current !== searchTxRef
+    ) {
       console.log('Verification trigger initiated for:', searchTxRef);
+      lastVerifiedTxRef.current = searchTxRef;
       // Show immediate feedback even in toast
       const verifToast = toast.loading('Detecting payment. Verifying with Chapa...');
       (async () => {
@@ -324,12 +331,16 @@ export default function PlacementRequestSimple() {
             toast.error(verifyRes.message || 'Verification failed', { id: verifToast });
             setPaymentStatus('error');
             setPaymentErrorMessage(verifyRes.message || 'Verification failed');
+            setSearchParams({}, { replace: true });
+            localStorage.removeItem('pending_chapa_tx_ref');
           }
         } catch (vErr) {
           console.error('Verification error:', vErr);
           toast.error('Verification failed', { id: verifToast });
           setPaymentStatus('error');
           setPaymentErrorMessage('Verification failed. If you already paid, please contact support.');
+          setSearchParams({}, { replace: true });
+          localStorage.removeItem('pending_chapa_tx_ref');
         }
       })();
     }

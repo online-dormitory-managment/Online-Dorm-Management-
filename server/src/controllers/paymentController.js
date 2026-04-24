@@ -144,6 +144,13 @@ const verifyPayment = async (req, res) => {
 
     logToFile(`🔍 Verifying payment: ${tx_ref}`);
 
+    // Idempotent shortcut: if we already marked this transaction as success locally,
+    // return success immediately and avoid repeated external verification calls.
+    const existingSuccess = await Transaction.findOne({ tx_ref, status: 'success' });
+    if (existingSuccess) {
+      return res.json({ success: true, message: 'Payment already verified', tx_ref });
+    }
+
     // PROFESSIONAL SANDBOX VERIFICATION
     if (process.env.CHAPA_MOCK_MODE === 'true') {
       logToFile(`🛠️ [SANDBOX MODE] Simulating Verification Success for: ${tx_ref}`);
@@ -164,7 +171,19 @@ const verifyPayment = async (req, res) => {
 
     return await finalizeVerification(response.data, req, res);
   } catch (error) {
-    logToFile(`❌ Verification Error: ${error.message}`);
+    const apiPayload = error.response?.data;
+    const apiStatus = error.response?.status;
+    logToFile(`❌ Verification Error: status=${apiStatus || 'n/a'} message=${error.message}`);
+
+    // Avoid hard-fail loops on the frontend for expected upstream verification failures.
+    if (apiStatus && apiStatus >= 400 && apiStatus < 500) {
+      return res.status(200).json({
+        success: false,
+        message: apiPayload?.message || 'Payment is not verified yet. Please wait and try again.',
+        tx_ref,
+      });
+    }
+
     res.status(500).json({ success: false, message: 'Verification error' });
   }
 };
@@ -173,8 +192,8 @@ const verifyPayment = async (req, res) => {
  * Common logic to update DB after verification
  */
 const finalizeVerification = async (chapaData, req, res) => {
-  const { tx_ref } = chapaData.data;
-  if (chapaData.status === 'success' && chapaData.data.status === 'success') {
+  const tx_ref = chapaData?.data?.tx_ref;
+  if (tx_ref && chapaData.status === 'success' && chapaData.data.status === 'success') {
     logToFile(`✅ Verified: ${tx_ref}`);
 
     // Update Transaction record
@@ -245,9 +264,11 @@ const finalizeVerification = async (chapaData, req, res) => {
 
     return res.json({ success: true, message: 'Payment verified successfully' });
   } else {
-    await Transaction.findOneAndUpdate({ tx_ref }, { status: 'failed', chapaResponse: chapaData });
-    logToFile(`❌ Verification Failed: ${tx_ref}`);
-    return res.status(400).json({ success: false, message: 'Payment verification failed' });
+    if (tx_ref) {
+      await Transaction.findOneAndUpdate({ tx_ref }, { status: 'failed', chapaResponse: chapaData });
+    }
+    logToFile(`❌ Verification Failed: ${tx_ref || 'missing_tx_ref'}`);
+    return res.status(200).json({ success: false, message: 'Payment verification failed' });
   }
 };
 
