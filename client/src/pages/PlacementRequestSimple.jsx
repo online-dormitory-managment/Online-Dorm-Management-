@@ -504,7 +504,7 @@ export default function PlacementRequestSimple() {
       if (studentTypeInfo.isSelfSponsored) {
         let finalReceipt = paymentReceipt;
         if (isPaid && !finalReceipt) {
-          finalReceipt = await generateDigitalReceipt();
+          finalReceipt = await generateMockReceipt();
         }
         if (finalReceipt) {
            fd.append('paymentReceipt', finalReceipt);
