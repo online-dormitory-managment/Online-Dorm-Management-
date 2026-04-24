@@ -372,7 +372,7 @@ export default function Home() {
                 ) : (
                   <div className="whitespace-nowrap py-2">
                     <div className="homepage-marquee-track">
-                      {[...events, ...events].map((event, idx) => (
+                      {events.map((event, idx) => (
                         <div
                           key={`${event._id}-${idx}`}
                           className="min-w-[300px] max-w-sm rounded-[1.25rem] bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex-shrink-0 overflow-hidden flex flex-col group"
@@ -416,7 +416,18 @@ export default function Home() {
                                   })
                                 : ''}
                             </span>
-                            <span>{event.time}</span>
+                            {event.registrationLink ? (
+                              <a
+                                href={event.registrationLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                Register Here
+                              </a>
+                            ) : (
+                              <span>{event.time}</span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -704,6 +715,16 @@ export default function Home() {
                       <p className="mt-2 text-xs text-slate-600 line-clamp-3 mb-2 flex-grow">
                         {event.description}
                       </p>
+                      {event.registrationLink && (
+                        <a
+                          href={event.registrationLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors"
+                        >
+                          Register Here
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}

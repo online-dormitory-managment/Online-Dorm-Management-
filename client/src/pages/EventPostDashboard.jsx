@@ -17,7 +17,8 @@ import {
   FaMagic,
   FaInfoCircle,
   FaChevronRight,
-  FaImage
+  FaImage,
+  FaExternalLinkAlt
 } from 'react-icons/fa';
 import { uploadUrl } from '../utils/uploadUrl';
 
@@ -36,6 +37,7 @@ export default function EventPostDashboard() {
     description: '',
     category: 'Other',
     eventPosterID: '',
+    registrationLink: '',
     image: null,
   });
 
@@ -64,6 +66,7 @@ export default function EventPostDashboard() {
       description: '',
       category: 'Other',
       eventPosterID: '',
+      registrationLink: '',
       image: null,
     });
     setEditingId(null);
@@ -78,7 +81,8 @@ export default function EventPostDashboard() {
       description: ev.description || '',
       category: ev.category || 'Other',
       eventPosterID: ev.eventPosterID || '',
-      image: ev.image || null, // pass the backend image object, form will override if a new file is chosen
+      registrationLink: ev.registrationLink || '',
+      image: ev.image || null,
     });
     setEditingId(ev._id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -96,6 +100,7 @@ export default function EventPostDashboard() {
         description: form.description.trim(),
         category: form.category,
         eventPosterID: form.eventPosterID.trim(),
+        registrationLink: form.registrationLink.trim(),
         image: form.image,
       };
 
@@ -307,6 +312,23 @@ export default function EventPostDashboard() {
                     value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   />
+                </div>
+
+                {/* Registration Link */}
+                <div className="space-y-4">
+                  <label className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <FaExternalLinkAlt className="w-3 h-3 text-blue-500" />
+                    Registration Link
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">(Optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://forms.google.com/..."
+                    className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-200 rounded-[1.5rem] focus:outline-none focus:border-blue-600 focus:bg-white transition-all text-slate-900 font-bold placeholder:text-slate-400 text-base"
+                    value={form.registrationLink}
+                    onChange={(e) => setForm((f) => ({ ...f, registrationLink: e.target.value }))}
+                  />
+                  <p className="text-[11px] text-slate-400 font-medium">Add a Google Form or external link where attendees can register. A "Register Here" button will appear on your event.</p>
                 </div>
 
                 {/* Verification ID Section */}

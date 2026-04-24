@@ -6,6 +6,7 @@ const eventSchema = new mongoose.Schema({
     time: { type: String, required: true }, // e.g., "10:00 AM - 12:00 PM"
     location: { type: String, required: true },
     description: { type: String },
+    registrationLink: { type: String, default: '' }, // Google Form or external registration URL
     category: {
         type: String,
         enum: ['Academic', 'Social', 'Meeting', 'Sports', 'Other'],
