@@ -14,7 +14,10 @@ import {
   FaPhone,
   FaMapMarkerAlt,
   FaCalendarAlt,
-  FaChevronRight
+  FaChevronRight,
+  FaEdit,
+  FaSave,
+  FaTimes
 } from 'react-icons/fa';
 import ProfilePictureUpload from '../components/common/ProfilePictureUpload';
 import BuildingIcon from '../components/common/BuildingIcon';
@@ -22,11 +25,15 @@ import DashboardLayout from '../components/dashboard/Students/DashboardLayout';
 import studentApi from '../api/studentApi';
 import authApi from '../api/authApi';
 import proctorApi from '../api/proctorApi';
+import toast from 'react-hot-toast';
 
 export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [error, setError] = useState(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const user = authApi.getCurrentUser();
 
   useEffect(() => {
@@ -106,6 +113,7 @@ export default function Profile() {
 
   const student = profileData?.student || {};
   const stats = profileData?.quickStats || {};
+  const displayName = user?.name || student.name || 'User';
 
   const rawType = student.studentType || student.sponsorship || '';
   const t = String(rawType).toLowerCase();
@@ -121,6 +129,54 @@ export default function Profile() {
   }
 
   const isAdmin = ['Admin', 'CampusAdmin', 'SuperAdmin'].includes(user?.role);
+
+  const startNameEdit = () => {
+    setNameDraft(displayName);
+    setIsEditingName(true);
+  };
+
+  const cancelNameEdit = () => {
+    setIsEditingName(false);
+    setNameDraft('');
+  };
+
+  const saveName = async () => {
+    const trimmed = String(nameDraft || '').trim();
+    if (!trimmed) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+
+    try {
+      setSavingName(true);
+      const res = await authApi.updateProfile({ name: trimmed });
+      if (!res?.success) {
+        throw new Error(res?.message || 'Failed to update name');
+      }
+
+      const currentUser = authApi.getCurrentUser();
+      if (currentUser) {
+        localStorage.setItem('user', JSON.stringify({ ...currentUser, name: res.data?.name || trimmed }));
+        window.dispatchEvent(new Event('storage'));
+      }
+
+      setProfileData((prev) => ({
+        ...(prev || {}),
+        student: {
+          ...(prev?.student || {}),
+          name: res.data?.name || trimmed,
+        },
+      }));
+
+      setIsEditingName(false);
+      toast.success('Name updated successfully');
+      window.location.reload();
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update name');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const ProfileContent = (
     <section className="px-2 sm:px-4 py-4 sm:py-6">
@@ -142,7 +198,49 @@ export default function Profile() {
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold text-slate-900 mb-1">{student.name}</h2>
+              <div className="w-full flex items-center justify-center gap-2 mb-1">
+                {isEditingName ? (
+                  <>
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      className="max-w-[260px] px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-900"
+                      placeholder="Enter your full name"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveName}
+                      disabled={savingName}
+                      className="p-2 rounded-lg bg-emerald-600 text-white disabled:opacity-60"
+                      title="Save name"
+                    >
+                      {savingName ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaSave className="w-3 h-3" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelNameEdit}
+                      disabled={savingName}
+                      className="p-2 rounded-lg bg-slate-100 text-slate-700"
+                      title="Cancel"
+                    >
+                      <FaTimes className="w-3 h-3" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold text-slate-900">{displayName}</h2>
+                    <button
+                      type="button"
+                      onClick={startNameEdit}
+                      className="p-2 rounded-lg text-slate-400 hover:text-blue-600"
+                      title="Edit name"
+                    >
+                      <FaEdit className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
               <p className="text-sm text-slate-500 mb-6 font-medium">ID: {student.studentId || user?.userID}</p>
 
               <div className="flex gap-3 w-full">
