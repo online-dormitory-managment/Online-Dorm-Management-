@@ -11,7 +11,9 @@ const authRoutes = require('./src/routes/authRoutes');
 const studentRoutes = require('./src/routes/studentRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 
-const { getOcrScheduler } = require('./src/controllers/dormController');
+// Avoid importing OCR/Tesseract code during serverless cold starts.
+// In Vercel serverless functions, importing tesseract.js can be very heavy and lead to timeouts
+// even for unrelated endpoints like /api/auth/login.
 
 // Import models
 const Student = require('./src/models/Student');
@@ -304,7 +306,12 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
 
     // Pre-warm OCR Workers
     console.log('🚀 Pre-warming OCR Scheduler...');
-    getOcrScheduler().catch(err => console.error('❌ OCR Pre-warm error:', err));
+    try {
+      const { getOcrScheduler } = require('./src/controllers/dormController');
+      getOcrScheduler().catch(err => console.error('❌ OCR Pre-warm error:', err));
+    } catch (err) {
+      console.error('❌ OCR Pre-warm load error:', err);
+    }
   });
 }
 
