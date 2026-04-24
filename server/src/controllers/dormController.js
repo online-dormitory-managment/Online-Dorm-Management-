@@ -336,7 +336,8 @@ const submitApplication = async (req, res) => {
     const originVerified = true;
 
     // Policy decision should follow the verified declared city.
-    const isAddis = cityImpliesAddis(finalCity);
+    // 5-minute wait applies ONLY to exact "Addis Ababa" city.
+    const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
     // Policy: all Addis Ababa applicants wait 5 minutes before assignment.
     // Outside Addis can be assigned immediately.
