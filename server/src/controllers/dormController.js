@@ -327,14 +327,18 @@ const submitApplication = async (req, res) => {
       // Fallback: OCR can be noisy; allow near-match and auto-correct/notify.
       const fuzzyMatch = cityMatchesBackOcr(city, backText);
       const suggested = citySuggestionFromBackOcr(backText);
-      if (fuzzyMatch && suggested) {
-        finalCity = suggested;
-        verificationNote = `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
+      if (fuzzyMatch) {
+        if (suggested) {
+          finalCity = suggested;
+          verificationNote = `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
+        } else {
+          verificationNote = `City fuzzily verified from "${city}" using partial back-side text.`;
+        }
       } else {
         return res.status(400).json({
           success: false,
           message: suggested
-            ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (suggested: "${suggested}").`
+            ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (OCR detected: "${suggested}").`
             : 'Declared city does not match the FYDA back-side address. Please use the exact city spelling from your FYDA.',
         });
       }
