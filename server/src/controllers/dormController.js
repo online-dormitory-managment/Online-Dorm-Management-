@@ -286,11 +286,11 @@ const submitApplication = async (req, res) => {
     // Wait for all processes to finish or timeout
     await Promise.all(parallelTasks);
 
-    // === STRICT VERIFICATION LOGIC ===
+    // === SOFT VERIFICATION LOGIC (OCR is best-effort, never blocks) ===
     if (!city) {
       return res.status(400).json({
         success: false,
-        message: 'City is required and must match the FYDA back-side address.',
+        message: 'City is required.',
       });
     }
 
@@ -300,47 +300,45 @@ const submitApplication = async (req, res) => {
     console.log(`Detected Address: ${backText || "[Empty]"}`);
     console.log(`Applied City: ${city}`);
 
-    if (frontOcrTimedOut || backOcrTimedOut || !frontText || !backText) {
-      const timedOut = frontOcrTimedOut || backOcrTimedOut;
-      return res.status(400).json({
-        success: false,
-        message: timedOut
-          ? 'FYDA scan timed out. Please upload clearer front/back images (well-lit, upright, and close) and try again.'
-          : 'Could not verify FYDA images. Please upload clearer front and back images and try again.',
-      });
-    }
-
-    const nameMatches =
-      nameLikelyOnId(student.fullName, frontText) ||
-      nameLikelyOnId(student?.user?.name, frontText);
-    if (!nameMatches) {
-      return res.status(400).json({
-        success: false,
-        message: 'Student name does not match the FYDA front-side text.',
-      });
-    }
-
-    let verificationNote = 'Strictly verified: FYDA front name and back-side city match.';
+    let verificationNote = '';
+    let originVerified = false;
     let finalCity = city;
-    const cityMatches = strictCityMatchFromBackOcr(city, backText);
-    if (!cityMatches) {
-      // Fallback: OCR can be noisy; allow near-match and auto-correct/notify.
-      const fuzzyMatch = cityMatchesBackOcr(city, backText);
-      const suggested = citySuggestionFromBackOcr(backText);
-      if (fuzzyMatch && suggested) {
-        finalCity = suggested;
-        verificationNote = `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
+
+    // OCR timed out or returned empty — skip all checks, proceed with declared city
+    if (frontOcrTimedOut || backOcrTimedOut || !frontText || !backText) {
+      const reason = (frontOcrTimedOut || backOcrTimedOut) ? 'OCR timed out' : 'OCR returned empty text';
+      verificationNote = `${reason}. Proceeding with declared city "${city}". Manual review recommended.`;
+      console.warn(`⚠️ ${verificationNote}`);
+    } else {
+      // Name check (soft — log only)
+      const nameMatches =
+        nameLikelyOnId(student.fullName, frontText) ||
+        nameLikelyOnId(student?.user?.name, frontText);
+      if (!nameMatches) {
+        verificationNote = `Name may not match FYDA front-side. Declared: "${student.fullName}". `;
+        console.warn(`⚠️ Name mismatch for ${student.fullName}`);
+      }
+
+      // City check (soft — try strict, then fuzzy, then accept declared)
+      const cityMatches = strictCityMatchFromBackOcr(city, backText);
+      if (cityMatches) {
+        originVerified = true;
+        verificationNote += 'Strictly verified: FYDA front name and back-side city match.';
       } else {
-        return res.status(400).json({
-          success: false,
-          message: suggested
-            ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (suggested: "${suggested}").`
-            : 'Declared city does not match the FYDA back-side address. Please use the exact city spelling from your FYDA.',
-        });
+        const fuzzyMatch = cityMatchesBackOcr(city, backText);
+        const suggested = citySuggestionFromBackOcr(backText);
+        if (fuzzyMatch && suggested) {
+          finalCity = suggested;
+          originVerified = true;
+          verificationNote += `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
+        } else {
+          // City didn't match, but we still proceed with declared city
+          verificationNote += `City "${city}" could not be verified against FYDA back-side OCR${suggested ? ` (OCR detected: "${suggested}")` : ''}. Using declared city. Manual review recommended.`;
+          console.warn(`⚠️ City mismatch for ${student.fullName}: declared "${city}", OCR suggested: "${suggested || 'none'}"`);
+        }
       }
     }
 
-    const originVerified = true;
 
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
