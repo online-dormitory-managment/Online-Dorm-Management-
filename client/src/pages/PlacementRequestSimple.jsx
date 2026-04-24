@@ -151,8 +151,6 @@ export default function PlacementRequestSimple() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'error', 'verifying'
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
-  const [showAddisWaitModal, setShowAddisWaitModal] = useState(false);
-  const [hasScheduledNotice, setHasScheduledNotice] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
   const isAddis = useMemo(() => {
@@ -493,25 +491,6 @@ export default function PlacementRequestSimple() {
       toast.dismiss(loadingToast);
 
       const status = res?.application?.status;
-
-      if (status === 'Waiting') {
-        // Addis Ababa Special Logic - Show Modal after actual submission
-        if (!hasScheduledNotice) {
-          setShowAddisWaitModal(true);
-          setHasScheduledNotice(true);
-          
-          studentApi.scheduleNotification({
-            type: 'DormApplication',
-            title: 'Apply for Dorm Placement',
-            message: 'It has been 5 minutes since your initial request. Students from Addis Ababa can now proceed with their dorm applications.',
-            scheduledAt: new Date(Date.now() + 300000)
-          }).catch(err => console.error('Failed to schedule notification:', err));
-        } else {
-          setShowAddisWaitModal(true);
-        }
-        await clearDraft();
-        return; 
-      }
 
       if (status === 'Assigned') {
         toast.success('Success! You have been assigned a dorm room.');
@@ -1146,42 +1125,7 @@ export default function PlacementRequestSimple() {
         </div>
       </div>
 
-      {/* Addis Ababa Student Wait Modal */}
-      {showAddisWaitModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center relative animate-in zoom-in-95 duration-300 border border-blue-100">
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-200 rotate-12">
-              <FaCalendarAlt className="w-10 h-10 text-white -rotate-12" />
-            </div>
-            
-            <div className="mt-8 space-y-4">
-              <h3 className="text-2xl font-bold text-slate-800">Notice for Addis Ababa Students</h3>
-              <p className="text-slate-600 leading-relaxed">
-                As a resident of Addis Ababa, your application process requires a different timeline. 
-                <span className="block mt-4 font-semibold text-blue-600 bg-blue-50 py-3 rounded-xl">
-                  Please wait for exactly 5 minutes.
-                </span>
-              </p>
-              <div className="bg-amber-50 rounded-2xl p-4 flex items-start gap-3 text-left border border-amber-100">
-                <FaInfoCircle className="text-amber-500 w-5 h-5 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-800 font-medium">
-                  We have automatically scheduled a notification for you. You will be notified in exactly 5 minutes when the system opens for your region.
-                </p>
-              </div>
-              
-              <button
-                onClick={() => {
-                  setShowAddisWaitModal(false);
-                  navigate('/student-portal');
-                }}
-                className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-2xl font-bold transition-all shadow-lg hover:shadow-black/20"
-              >
-                Got it, take me back
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 5-minute wait modal removed by policy */}
     </DashboardLayout>
   );
 }

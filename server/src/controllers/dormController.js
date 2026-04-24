@@ -335,27 +335,16 @@ const submitApplication = async (req, res) => {
 
     const originVerified = true;
 
-    // Policy decision should follow the verified declared city.
-    // 5-minute wait applies ONLY to exact "Addis Ababa" city.
+    // No delayed-wait policy: all validated applications attempt immediate assignment.
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
-    // Policy: all Addis Ababa applicants wait 5 minutes before assignment.
-    // Outside Addis can be assigned immediately.
-    const requiresWait = isAddis;
-
-    let status = 'Waiting';
+    let status = 'Assigned';
     let scheduledReleaseAt = null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
     
-    // DECISION: ONLY Addis Ababa waits 5 minutes. All other cities get immediate assignment attempt.
-    if (requiresWait) {
-      status = 'Waiting';
-      scheduledReleaseAt = new Date(Date.now() + 5 * 60 * 1000);
-    } else {
-      status = 'Assigned'; // immediate assignment attempt below
-    }
+    // Immediate assignment attempt for everyone.
 
     // ==================== SAVE APPLICATION ====================
     const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');
@@ -390,15 +379,15 @@ const submitApplication = async (req, res) => {
       try {
         const success = await assignStudentToRoom(application, student);
         if (!success) {
-          // If no room found, revert to Waiting so it can pick up later if rooms free up
-          application.status = 'Waiting';
-          application.scheduledReleaseAt = new Date(); // Process ASAP by worker
+          // No room currently available -> keep pending, no timed wait flow.
+          application.status = 'Pending';
+          application.scheduledReleaseAt = null;
           await application.save();
         }
       } catch (assignErr) {
         console.error(`Immediate assignment failed for ${student.fullName}:`, assignErr.message);
-        application.status = 'Waiting';
-        application.scheduledReleaseAt = new Date();
+        application.status = 'Pending';
+        application.scheduledReleaseAt = null;
         await application.save();
       }
     }
@@ -407,8 +396,8 @@ const submitApplication = async (req, res) => {
 
     const message = application.status === 'Assigned'
       ? 'Dorm automatically assigned!'
-      : application.status === 'Waiting'
-        ? 'Your application is in the mandatory 5-minute wait period for Addis Ababa residents. Please check back shortly.'
+      : application.status === 'Pending'
+        ? 'Application submitted. Assignment will continue when space is available.'
         : student.sponsorship === 'Self-Sponsored'
           ? 'Please complete payment of 1,500 ETB to secure your dorm room.'
           : 'Application submitted successfully.';
