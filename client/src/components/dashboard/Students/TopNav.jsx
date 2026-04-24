@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { toast } from 'react-hot-toast';
 import authApi from '../../../api/authApi';
 import notificationApi from '../../../api/notificationApi';
+import dormApi from '../../../api/dormApi';
 import { useTheme } from '../../../context/ThemeContext';
 
 import {
@@ -139,6 +140,7 @@ export default function TopNav() {
     ...((role === 'Student' || role === 'Vendor') && role !== 'EventPoster' ? [
       { label: 'Apply Event Access', path: '/apply-event-poster', icon: FaCalendarPlus, color: 'text-blue-600', divider: true }
     ] : []),
+    { label: 'Reset Placement (Test)', action: handleResetApplication, icon: FaTrash, color: 'text-amber-600', developerOnly: true },
     { label: 'Logout', path: '/logout', icon: FaSignOutAlt, color: 'text-rose-600', divider: true }
   ];
 
@@ -221,23 +223,53 @@ export default function TopNav() {
   // Handlers
   const handleMarkRead = async (e, id) => {
     if (e) e.stopPropagation();
+    
+    // Optimistic Update
+    setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
     try {
       await notificationApi.markRead(id);
-      fetchNotifications();
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
+      fetchNotifications(); // Revert on failure
     }
   };
 
   const handleDeleteNotification = async (e, id) => {
     e.stopPropagation();
+    
+    // Find before removing for count update
+    const notifToDelete = notifications.find(n => n._id === id);
+    
+    // Optimistic Update
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    if (notifToDelete && !notifToDelete.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+
     try {
       await notificationApi.delete(id);
       toast.success('Notification deleted');
-      fetchNotifications();
     } catch (err) {
       console.error('Failed to delete notification:', err);
       toast.error('Failed to delete notification');
+      fetchNotifications(); // Revert
+    }
+  };
+
+  const handleResetApplication = async () => {
+    if (!window.confirm('WARNING: This will delete your current dorm application and room assignment for testing purposes. Continue?')) return;
+    
+    try {
+      const res = await dormApi.resetMyApplication();
+      if (res.success) {
+        toast.success(res.message);
+        navigate('/student-portal');
+        window.location.reload(); // Refresh to clear states
+      }
+    } catch (err) {
+      toast.error(err.message || 'Reset failed');
     }
   };
 
@@ -463,22 +495,41 @@ export default function TopNav() {
                           {unreadCount} new
                         </span>
                       </div>
-                      {unreadCount > 0 && (
+                      <div className="flex items-center gap-4">
                         <button
                           onClick={async () => {
+                            if (!window.confirm('Delete all notifications?')) return;
                             try {
-                              await notificationApi.markAllRead();
-                              fetchNotifications();
-                              toast.success('All marked as read');
+                              await notificationApi.clearAll();
+                              setNotifications([]);
+                              setUnreadCount(0);
+                              toast.success('All cleared');
                             } catch (err) {
                               console.error(err);
                             }
                           }}
-                          className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-colors"
+                          className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-colors"
                         >
-                          Mark all read
+                          Clear all
                         </button>
-                      )}
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await notificationApi.markAllRead();
+                                setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                                setUnreadCount(0);
+                                toast.success('All marked as read');
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                            className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-colors"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -607,8 +658,15 @@ export default function TopNav() {
                           <div className="my-1 border-t border-slate-100" />
                         )}
                         <Link
-                          to={item.path}
-                          onClick={item.label === 'Logout' ? handleLogout : undefined}
+                          to={item.path || '#'}
+                          onClick={(e) => {
+                            if (item.action) {
+                              e.preventDefault();
+                              item.action();
+                            } else if (item.label === 'Logout') {
+                              handleLogout();
+                            }
+                          }}
                           className={`
                             flex items-center gap-3 px-4 py-3 text-sm
                             transition-colors hover:bg-slate-50

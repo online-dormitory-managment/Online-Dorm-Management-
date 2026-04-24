@@ -50,6 +50,8 @@ router.use(authorize('Student', 'EventPoster', 'Vendor'));
 router.get('/application', getMyApplication);
 router.get('/my-application', getMyApplication);
 
+router.post('/reset-my-application', protect, resetMyApplication);
+
 router.post(
   '/application',
   upload.fields([

@@ -104,6 +104,15 @@ export const dormApi = {
 
   // Get university account number
   getUniversityAccount: () => UNIVERSITY_ACCOUNT,
+
+  resetMyApplication: async () => {
+    try {
+      const response = await api.post('/dorm/reset-my-application');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
 };
 
 export default dormApi;

@@ -467,12 +467,45 @@ const verifyChapaPayment = async (req, res) => {
   }
 };
 
+const resetMyApplication = async (req, res) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    const application = await DormApplication.findOne({ student: student._id });
+    if (!application) return res.status(404).json({ success: false, message: 'No application found to reset' });
+
+    // If assigned, clean up the room
+    if (application.assignedRoom) {
+      const room = await Room.findById(application.assignedRoom);
+      if (room) {
+        room.currentOccupants = Math.max(0, (room.currentOccupants || 0) - 1);
+        room.isFull = false;
+        if (room.assignedStudents) {
+          room.assignedStudents = room.assignedStudents.filter(id => id.toString() !== student._id.toString());
+        }
+        await room.save();
+      }
+    }
+
+    await application.deleteOne();
+    
+    // Clear notifications related to dorm app
+    await Notification.deleteMany({ user: req.user._id, type: 'DormApplication' });
+
+    res.json({ success: true, message: 'Application and room assignment reset successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Reset failed: ' + err.message });
+  }
+};
+
 module.exports = {
-  verifyChapaPayment,
   submitApplication,
+  verifyChapaPayment,
   getMyApplication,
   assignPendingApplications,
   assignStudentToRoom,
   findRoomForStudent,
   getOcrScheduler,
+  resetMyApplication
 };
