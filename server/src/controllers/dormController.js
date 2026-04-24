@@ -47,6 +47,7 @@ const Student = require('../models/Student');
 const Room = require('../models/Room');
 const Floor = require('../models/Floor');
 const Notification = require('../models/Notification');
+const ADDIS_WAIT_MS = 5 * 60 * 1000;
 
 function roomGenderFilter(gender) {
   return { $in: [gender, 'Mixed'] };
@@ -528,12 +529,21 @@ const verifyChapaPayment = async (req, res) => {
       return res.status(200).send('OK');
     }
 
-    application.paymentStatus = 'Verified';
-    // Payment verification must not change assignment status.
-    // Assignment is decided during submitApplication (room assignment flow).
-    console.log(`✅ Payment verified for ${application.student?.fullName}. Keeping assignment status as "${application.status}".`);
+    const now = new Date();
+    const isAddis = String(application.city || '').trim().toLowerCase() === 'addis ababa';
+    const isSelfSponsored = application.student?.sponsorship === 'Self-Sponsored';
 
-    application.paymentVerifiedAt = new Date();
+    application.paymentStatus = 'Paid';
+    // Required flow: Addis + self-sponsored enters 5-minute waiting queue after payment.
+    if (isAddis && isSelfSponsored) {
+      application.status = 'Waiting';
+      application.assignedRoom = null;
+      application.paymentQueuedAt = now;
+      application.scheduledReleaseAt = new Date(now.getTime() + ADDIS_WAIT_MS);
+    }
+    console.log(`✅ Payment verified for ${application.student?.fullName}. Current assignment status: "${application.status}".`);
+
+    application.paymentVerifiedAt = now;
     await application.save();
 
     // Create Notification for the student

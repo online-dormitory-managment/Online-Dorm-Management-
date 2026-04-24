@@ -177,6 +177,7 @@ app.use('/api/marketplace', require('./src/routes/marketplaceRoutes'));
 app.use('/api/orders', require('./src/routes/orderRoutes'));
 app.use('/api/proctor', require('./src/routes/proctorRoutes'));
 app.use('/api/payment', require('./src/routes/paymentRoutes'));
+app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/operational-reports', require('./src/routes/reportRoutes'));
 app.use('/api/role-applications', require('./src/routes/roleApplicationRoutes'));
 

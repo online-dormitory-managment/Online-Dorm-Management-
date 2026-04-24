@@ -202,6 +202,13 @@ try {
 }
 
 try {
+  app.use('/api/users', require('./routes/userRoutes'));
+  console.log('✓ User routes loaded');
+} catch (error) {
+  console.log('✗ User routes error:', error.message);
+}
+
+try {
   app.use('/api/operational-reports', require('./routes/reportRoutes'));
   console.log('✓ Operational Reports routes loaded');
 } catch (error) {
@@ -260,7 +267,10 @@ setInterval(async () => {
       for (const app of waitingApps) {
         try {
           const student = app.student;
-          if (student.sponsorship === 'Self-Sponsored' && app.paymentStatus !== 'Verified') {
+          if (
+            student.sponsorship === 'Self-Sponsored' &&
+            !['Paid', 'Verified'].includes(String(app.paymentStatus || ''))
+          ) {
             // Wait period is over, but they haven't paid. Move to PaymentPending.
             app.status = 'PaymentPending';
             console.log(`⏱️ Wait period over for ${student.fullName} (Self-Sponsored). Moving to PaymentPending.`);

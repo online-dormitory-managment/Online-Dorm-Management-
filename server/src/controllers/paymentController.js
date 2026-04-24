@@ -9,6 +9,7 @@ const Notification = require('../models/Notification');
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
 const CHAPA_CALLBACK_URL = (process.env.CHAPA_CALLBACK_URL || '').trim();
+const ADDIS_WAIT_MS = 5 * 60 * 1000;
 
 function buildPlacementReturnUrl() {
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
@@ -190,9 +191,22 @@ const finalizeVerification = async (chapaData, req, res) => {
     if (studentId) {
       let application = await DormApplication.findOne({ student: studentId }).populate('student');
       if (application) {
-        application.paymentStatus = 'Verified';
-        application.paymentVerifiedAt = new Date();
+        const now = new Date();
+        const isAddis = String(application.city || '').trim().toLowerCase() === 'addis ababa';
+        const isSelfSponsored = application.student?.sponsorship === 'Self-Sponsored';
+
+        application.paymentStatus = 'Paid';
+        application.paymentVerifiedAt = now;
         application.chapaTxRef = tx_ref;
+
+        // Required flow: for Addis + self-sponsored, payment triggers 5-minute waiting queue.
+        if (isAddis && isSelfSponsored) {
+          application.status = 'Waiting';
+          application.assignedRoom = null;
+          application.paymentQueuedAt = now;
+          application.scheduledReleaseAt = new Date(now.getTime() + ADDIS_WAIT_MS);
+        }
+
         await application.save();
       } else {
         // Payment can be verified before the student submits a dorm request.
@@ -226,7 +240,7 @@ const finalizeVerification = async (chapaData, req, res) => {
         console.error('Notification error in payment controller:', notifErr);
       }
 
-      logToFile(`📂 DormApplication payment status updated to Verified`);
+      logToFile(`📂 DormApplication payment status updated to Paid`);
     }
 
     return res.json({ success: true, message: 'Payment verified successfully' });

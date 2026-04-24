@@ -68,6 +68,9 @@ const dormApplicationSchema = new mongoose.Schema(
     paymentVerifiedAt: {
       type: Date,
     },
+    paymentQueuedAt: {
+      type: Date,
+    },
     paymentReceiptPath: {
       type: String,
       default: null,
