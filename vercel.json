@@ -17,7 +17,12 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "server/uploads/**",
+      "includeFiles": [
+        "server/src/**",
+        "server/uploads/**",
+        "server/server.js",
+        "server/.env"
+      ],
       "maxDuration": 60
     }
   }
