@@ -56,6 +56,7 @@ const {
   extractAddressRegionFromBackOcr,
   cityMatchesBackOcr,
   cityImpliesAddis,
+  backOcrImpliesAddisArea,
   impliesFarAddis,
   qualifiesForImmediateDorm,
 } = require('../utils/fydaAddressMatch');
