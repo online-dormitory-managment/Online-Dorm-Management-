@@ -106,6 +106,38 @@ function nameLikelyOnId(fullName, ocrText) {
   return hits >= need;
 }
 
+function normalizeDeclaredCity(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+  const key = raw.toLowerCase().replace(/[^a-z]/g, '');
+  // Common Addis spellings/typos users type
+  const addisAliases = [
+    'addis',
+    'addisababa',
+    'addisabeba',
+    'adis',
+    'adisababa',
+    'adisabeba',
+    'sheger',
+    'finfinne',
+    'finfine',
+  ];
+  if (addisAliases.some((a) => key.includes(a))) {
+    return 'Addis Ababa';
+  }
+  return raw;
+}
+
+function citySuggestionFromBackOcr(backText) {
+  if (!backText) return '';
+  if (backOcrImpliesAddisArea(backText)) return 'Addis Ababa';
+
+  // Best-effort human hint from OCR address region
+  const region = extractAddressRegionFromBackOcr(backText);
+  const words = (String(region).match(/[A-Za-z]{3,}/g) || []).slice(0, 3);
+  return words.join(' ');
+}
+
 /**
  * Prefer a room on the student's faculty campus; fall back to any same-gender vacancy.
  */
@@ -161,7 +193,8 @@ async function assignStudentToRoom(application, student) {
 const submitApplication = async (req, res) => {
   try {
     const reason = String(req.body.reason || 'Dorm placement request').trim();
-    const city = String(req.body.city || '').trim();
+    const rawCity = String(req.body.city || '').trim();
+    const city = normalizeDeclaredCity(rawCity);
 
     const frontFile = req.files?.fydaFront?.[0] || req.files?.nationalIdFront?.[0];
     const backFile = req.files?.fydaBack?.[0] || req.files?.nationalIdBack?.[0];
@@ -255,9 +288,12 @@ const submitApplication = async (req, res) => {
 
     const cityMatches = cityMatchesBackOcr(city, backText);
     if (!cityMatches) {
+      const suggested = citySuggestionFromBackOcr(backText);
       return res.status(400).json({
         success: false,
-        message: 'Declared city does not match the FYDA back-side address.',
+        message: suggested
+          ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (suggested: "${suggested}").`
+          : 'Declared city does not match the FYDA back-side address. Please use the exact city spelling from your FYDA.',
       });
     }
 
@@ -266,7 +302,9 @@ const submitApplication = async (req, res) => {
 
     const isAddis = cityImpliesAddis(city) || backOcrImpliesAddisArea(backText);
     const isFar = impliesFarAddis(city, backText);
-    const requiresWait = isAddis && !isFar;
+    // Policy: all Addis Ababa applicants wait 5 minutes before assignment.
+    // Outside Addis can be assigned immediately.
+    const requiresWait = isAddis;
 
     let status = 'Waiting';
     let scheduledReleaseAt = null;
