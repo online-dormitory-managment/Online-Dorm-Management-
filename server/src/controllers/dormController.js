@@ -280,7 +280,7 @@ const submitApplication = async (req, res) => {
       city: finalCity,
       nationalIdFront: rel(frontFile.path),
       nationalIdBack: rel(backFile.path),
-      extractedAddress: extractAddressRegionFromBackOcr(backText) || backText.slice(0, 8000),
+      extractedAddress: '',
       isOutsideAddisSheger: !isAddis,
       isFarAddisOutskirts: isFar,
       paymentStatus,
