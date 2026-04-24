@@ -352,12 +352,24 @@ const submitApplication = async (req, res) => {
     // Other verified cities are assigned immediately.
     const addisWaitMs = 5 * 60 * 1000;
     const requiresAddisWait = isAddis;
-    let status = requiresAddisWait ? 'Waiting' : 'Assigned';
-    let scheduledReleaseAt = requiresAddisWait ? new Date(Date.now() + addisWaitMs) : null;
-    let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
+    const hasPaid = !!req.files?.paymentReceipt?.[0];
+    
+    let paymentStatus = isSelfSponsored ? (hasPaid ? 'Paid' : 'Pending') : 'NotRequired';
+    
+    let status = 'Pending';
+    let scheduledReleaseAt = null;
+
+    if (isSelfSponsored && !hasPaid) {
+      status = 'Pending'; // Needs payment
+    } else {
+      // Free or already paid
+      status = requiresAddisWait ? 'Waiting' : 'Assigned';
+      scheduledReleaseAt = requiresAddisWait ? new Date(Date.now() + addisWaitMs) : null;
+    }
+
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
     let chapaTxRef = paymentInfo?.tx_ref || null;
-    
+
     // Immediate assignment attempt only when not in Addis waiting window.
 
     // ==================== SAVE APPLICATION ====================
