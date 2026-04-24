@@ -5,7 +5,6 @@ const DormApplication = require('../models/DormApplication');
 const Student = require('../models/Student');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
-const { assignStudentToRoom } = require('./dormController');
 
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
@@ -184,29 +183,22 @@ const finalizeVerification = async (chapaData, req, res) => {
       { new: true }
     );
 
-    // Update DormApplication
+    // Update DormApplication:
+    // IMPORTANT: payment verification must NOT be the source of assignment status.
+    // Assignment status is determined when student submits dorm request (FYDA-verified flow).
     const studentId = transaction ? transaction.student : (await Student.findOne({ user: req.user._id }))?._id;
     if (studentId) {
       let application = await DormApplication.findOne({ student: studentId }).populate('student');
-      if (!application) {
-        application = new DormApplication({
-          student: studentId,
-          paymentStatus: 'Verified',
-          paymentVerifiedAt: new Date(),
-          nationalIdFront: 'uploaded_online',
-          nationalIdBack: 'uploaded_online',
-          status: 'Assigned'
-        });
-      } else {
+      if (application) {
         application.paymentStatus = 'Verified';
         application.paymentVerifiedAt = new Date();
-        application.status = 'Assigned';
         application.chapaTxRef = tx_ref;
+        await application.save();
+      } else {
+        // Payment can be verified before the student submits a dorm request.
+        // Keep transaction successful, but do not fabricate/assign a dorm application here.
+        logToFile(`ℹ️ Payment verified but no dorm application exists yet for student ${studentId}`);
       }
-
-      // Assign room
-      await assignStudentToRoom(application, application.student || (await Student.findById(studentId)));
-      await application.save();
 
       // Create Notification
       try {
@@ -220,19 +212,21 @@ const finalizeVerification = async (chapaData, req, res) => {
             isSent: true
           });
           
-          await Notification.create({
-            user: student.user._id,
-            type: 'DormApplication',
-            title: 'Room Assigned',
-            message: 'Your dorm application is complete. A room has been assigned to you.',
-            isSent: true
-          });
+          if (application) {
+            await Notification.create({
+              user: student.user._id,
+              type: 'DormApplication',
+              title: 'Payment linked',
+              message: 'Your payment has been linked to your dorm application.',
+              isSent: true
+            });
+          }
         }
       } catch (notifErr) {
         console.error('Notification error in payment controller:', notifErr);
       }
 
-      logToFile(`📂 DormApplication Updated to Verified & Assigned`);
+      logToFile(`📂 DormApplication payment status updated to Verified`);
     }
 
     return res.json({ success: true, message: 'Payment verified successfully' });

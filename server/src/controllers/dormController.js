@@ -94,16 +94,17 @@ async function tryOcrText(filePath, jobTimeout = 7500) {
   }
 }
 
-/** Student name on front: require most name tokens to appear in OCR text. */
+/** Student name on front: tolerate OCR noise while keeping identity checks meaningful. */
 function nameLikelyOnId(fullName, ocrText) {
   const text = String(ocrText || '').toLowerCase();
   const tokens = String(fullName || '')
     .split(/\s+/)
     .map((t) => t.replace(/[^a-zA-Z']/g, '').toLowerCase())
-    .filter((t) => t.length >= 2);
+    .filter((t) => t.length >= 3);
   if (tokens.length === 0) return true;
   const hits = tokens.filter((t) => text.includes(t)).length;
-  const need = Math.min(2, tokens.length);
+  // OCR often misses one token; require roughly half of meaningful tokens.
+  const need = Math.max(1, Math.ceil(tokens.length * 0.5));
   return hits >= need;
 }
 
@@ -246,11 +247,11 @@ const submitApplication = async (req, res) => {
     const parallelTasks = [
       (async () => {
         try {
-          frontText = await tryOcrText(path.resolve(frontFile.path), 7500);
+          frontText = await tryOcrText(path.resolve(frontFile.path), 15000);
         } catch (ocrErr) {
           if (ocrErr.message === 'OCR_TIMEOUT') {
             frontOcrTimedOut = true;
-            console.warn('Front OCR timed out after 7.5s.');
+            console.warn('Front OCR timed out after 15s.');
           } else {
             console.error('Front OCR Error:', ocrErr.message);
           }
@@ -258,11 +259,11 @@ const submitApplication = async (req, res) => {
       })(),
       (async () => {
         try {
-          backText = await tryOcrText(path.resolve(backFile.path), 7500);
+          backText = await tryOcrText(path.resolve(backFile.path), 15000);
         } catch (ocrErr) {
           if (ocrErr.message === 'OCR_TIMEOUT') {
             backOcrTimedOut = true;
-            console.warn('Back OCR timed out after 7.5s.');
+            console.warn('Back OCR timed out after 15s.');
           } else {
             console.error('Back OCR Error:', ocrErr.message);
           }
@@ -299,13 +300,18 @@ const submitApplication = async (req, res) => {
     console.log(`Applied City: ${city}`);
 
     if (frontOcrTimedOut || backOcrTimedOut || !frontText || !backText) {
+      const timedOut = frontOcrTimedOut || backOcrTimedOut;
       return res.status(400).json({
         success: false,
-        message: 'Could not verify FYDA images. Please upload clearer front and back images and try again.',
+        message: timedOut
+          ? 'FYDA scan timed out. Please upload clearer front/back images (well-lit, upright, and close) and try again.'
+          : 'Could not verify FYDA images. Please upload clearer front and back images and try again.',
       });
     }
 
-    const nameMatches = nameLikelyOnId(student.fullName, frontText);
+    const nameMatches =
+      nameLikelyOnId(student.fullName, frontText) ||
+      nameLikelyOnId(student?.user?.name, frontText);
     if (!nameMatches) {
       return res.status(400).json({
         success: false,
@@ -521,18 +527,9 @@ const verifyChapaPayment = async (req, res) => {
     }
 
     application.paymentStatus = 'Verified';
-    
-    // If the student has ALREADY completed their 5-minute wait (status: 'PaymentPending'),
-    // we can assign them immediately upon payment.
-    if (application.status === 'PaymentPending') {
-      application.status = 'Assigned';
-      await assignStudentToRoom(application, application.student);
-      console.log(`✅ Wait period already finished -> Immediate assignment for ${application.student?.fullName}`);
-    } else {
-      // If they are still in the 5-minute 'Waiting' period, keep them there.
-      // The background worker in index.js will handle them once the time expires.
-      console.log(`✅ Payment verified for ${application.student?.fullName}. Staying in 'Waiting' until timer expires.`);
-    }
+    // Payment verification must not change assignment status.
+    // Assignment is decided during submitApplication (room assignment flow).
+    console.log(`✅ Payment verified for ${application.student?.fullName}. Keeping assignment status as "${application.status}".`);
 
     application.paymentVerifiedAt = new Date();
     await application.save();
@@ -550,8 +547,8 @@ const verifyChapaPayment = async (req, res) => {
       await Notification.create({
         user: application.student.user,
         type: 'DormApplication',
-        title: 'Dorm Assignment Complete',
-        message: 'Your dormitory application has been successfully processed and a room has been assigned.',
+        title: 'Payment linked',
+        message: 'Your payment has been linked to your dorm application.',
         isSent: true
       });
     } catch (notifErr) {
