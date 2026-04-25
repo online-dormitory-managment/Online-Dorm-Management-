@@ -9,6 +9,7 @@ const connectDB = async () => {
     // Prefer MONGODB_URI. Some environments set MONGO_URI to a placeholder like "${MONGODB_URI}"
     // which would break the connection if chosen first.
     const rawMongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    const dbName = (process.env.MONGODB_DB_NAME || 'dormitory_db').trim();
     const uri = rawMongoUri && /^\$\{.+\}$/.test(rawMongoUri.trim()) ? '' : rawMongoUri;
     
     if (!uri) {
@@ -22,6 +23,7 @@ const connectDB = async () => {
       connectTimeoutMS: 15000,
       maxPoolSize: 10,
       family: 4, // reduce SRV/DNS flakiness on some Windows networks
+      dbName,
     });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {

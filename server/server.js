@@ -81,6 +81,7 @@ if (!cached) {
 // On Vercel/production, never fall back to localhost — it will always fail and surface as 500s.
 // Require an explicit connection string via env vars.
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+const MONGODB_DB_NAME = (process.env.MONGODB_DB_NAME || 'dormitory_db').trim();
 
 async function connectDB() {
   if (cached.conn) {
@@ -100,6 +101,8 @@ async function connectDB() {
       connectTimeoutMS: 15000,
       maxPoolSize: 10,
       family: 4, // prefer IPv4 to avoid intermittent SRV/DNS issues on some clients
+      // Prevent accidental fallback to MongoDB's default "test" database in production.
+      dbName: MONGODB_DB_NAME,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
@@ -159,6 +162,7 @@ app.get('/api/debug-db', async (req, res) => {
       status: 'Diagnostic Info',
       envFound: !!uri,
       uriProvided: uri ? `${uri.substring(0, 15)}...` : 'Not Found',
+      targetDbName: MONGODB_DB_NAME,
       readyState: mongoose.connection.readyState, // 0 = disc, 1 = conn, 2 = conn-ing
       dbName: mongoose.connection.name,
       nodeEnv: process.env.NODE_ENV
