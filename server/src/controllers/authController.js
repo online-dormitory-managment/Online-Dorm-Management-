@@ -11,7 +11,12 @@ function escapeRegex(s) {
 /** UGR/7887/15 or UGR/7887/15/ → UGR/7887/15 */
 function normalizeUgrInput(raw) {
   if (!raw) return null;
-  let u = String(raw).trim().replace(/\/+$/g, '').replace(/\s+/g, '');
+  let u = String(raw)
+    .trim()
+    // normalize common slash variants copied from phones/keyboards
+    .replace(/[\\|]/g, '/')
+    .replace(/\/+$/g, '')
+    .replace(/\s+/g, '');
   const parts = u.split('/').filter((p) => p.length > 0);
   if (parts.length < 3) return null;
   if (parts[0].toUpperCase() !== 'UGR') return null;
@@ -20,7 +25,9 @@ function normalizeUgrInput(raw) {
 
 // Unified login for Student / Proctor / Admin
 const loginUser = async (req, res) => {
-  let userId = (req.body.userId || req.body.userID || req.body.studentId || '').trim();
+  let userId = (req.body.userId || req.body.userID || req.body.studentId || '')
+    .trim()
+    .replace(/[\\|]/g, '/');
   const passwordPlain = String(req.body.password ?? '').trim();
 
   console.log('🔐 Login attempt:', userId);
@@ -58,6 +65,15 @@ const loginUser = async (req, res) => {
           { email: { $regex: new RegExp('^' + escaped + '$', 'i') } },
         ],
       });
+    }
+
+    // 4) Fallback: if login id is a student ID, resolve via Student -> User link.
+    // This helps when User.userID and Student.studentID drift slightly.
+    if (!user && normalizedUgr) {
+      const linkedStudent = await Student.findOne({ studentID: normalizedUgr }).populate('user');
+      if (linkedStudent?.user) {
+        user = linkedStudent.user;
+      }
     }
 
     if (!user) {
