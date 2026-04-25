@@ -25,17 +25,25 @@ const PORT = process.env.PORT || 5000;
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = [
+    const allowedOrigins = new Set([
       'http://localhost:5173',
       'http://localhost:3000',
       'http://localhost:5000'
-    ];
+    ]);
+    const envFrontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+    if (envFrontend) allowedOrigins.add(envFrontend);
+    const extraOrigins = (process.env.CORS_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim().replace(/\/+$/, ''))
+      .filter(Boolean);
+    for (const o of extraOrigins) allowedOrigins.add(o);
     
     // Allow requests with no origin (like mobile apps/curl)
     if (!origin) return callback(null, true);
     
     // Check if origin is local or a vercel subdomain
-    const isLocal = allowedOrigins.includes(origin);
+    const normalizedOrigin = String(origin).replace(/\/+$/, '');
+    const isLocal = allowedOrigins.has(normalizedOrigin);
     const isVercel = origin.endsWith('.vercel.app');
     
     if (isLocal || isVercel) {

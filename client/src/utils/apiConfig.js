@@ -16,6 +16,19 @@ export const getApiBaseUrl = () => {
   const raw = import.meta.env.VITE_API_URL;
   if (raw) {
     const v = String(raw).trim();
+    const isExplicitLocalHost =
+      /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.)/i.test(v);
+    const currentHostIsLocal =
+      typeof window !== 'undefined' &&
+      (/^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname) ||
+        window.location.hostname.startsWith('192.168.'));
+
+    // Safety: never use localhost API from a deployed (non-local) browser.
+    // This is a common cause of "Network Error" on other devices.
+    if (isExplicitLocalHost && !currentHostIsLocal) {
+      return '/api';
+    }
+
     // Accept relative "/api" as-is
     if (v === '/api' || v.startsWith('/api/')) return v.replace(/\/+$/, '');
     // If someone sets "http(s)://host" without "/api", append it.

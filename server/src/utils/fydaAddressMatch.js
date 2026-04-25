@@ -77,7 +77,7 @@ function cityMatchesBackOcr(city, backOcrText) {
   if (!rawCity) return false;
 
   const cityKey = normalizeAscii(rawCity);
-  if (!cityKey || cityKey.length < 3) return false;
+  if (!cityKey) return false;
 
   const fullAscii = normalizeAscii(backOcrText);
   const addrSlice = extractAddressRegionFromBackOcr(backOcrText);
