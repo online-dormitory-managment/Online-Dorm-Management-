@@ -1,3 +1,4 @@
+// Deployment Heartbeat: 2026-04-26 01:14:00
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -323,6 +324,7 @@ app.use((req, res) => {
   });
 });
 
+// src/server.js - Last Synced: 2026-04-26 01:13:40
 // Start server
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, async () => {
