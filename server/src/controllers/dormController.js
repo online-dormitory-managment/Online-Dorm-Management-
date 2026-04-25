@@ -415,7 +415,8 @@ const submitApplication = async (req, res) => {
       success: true,
       message,
       application,
-      chapaPaymentUrl   // ← This is what the frontend will use to show "Pay Now"
+      chapaPaymentUrl,
+      deploymentVersion: '2026-04-26-v4-FINAL'
     });
   } catch (err) {
     console.error(err);
@@ -501,7 +502,11 @@ const getMyApplication = async (req, res) => {
       }
     }
 
-    return res.json({ success: true, application });
+    return res.json({ 
+      success: true, 
+      application, 
+      deploymentVersion: '2026-04-26-v4-FINAL' 
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message });
