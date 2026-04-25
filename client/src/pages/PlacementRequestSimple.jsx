@@ -132,7 +132,6 @@ export default function PlacementRequestSimple() {
   const [submitError, setSubmitError] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
 
-  const [city, setCity] = useState('');
   const [fydaFront, setFydaFront] = useState(null);
   const [fydaBack, setFydaBack] = useState(null);
   const [addisLetter, setAddisLetter] = useState(null);
@@ -154,13 +153,9 @@ export default function PlacementRequestSimple() {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const lastVerifiedTxRef = useRef(null);
 
-  const isAddis = useMemo(() => {
-    return String(city || '').trim().toLowerCase() === 'addis ababa';
-  }, [city]);
-
-  const isLikelyFarAddis = useMemo(() => impliesFarAddisFromCity(city), [city]);
-  /** Addis students now have no letter input and must wait. */
-  const needsCentralAddisLetter = false; // "remove the input to upload an addition letter"
+  const isAddis = false;
+  const isLikelyFarAddis = false;
+  const needsCentralAddisLetter = false;
 
   const studentTypeInfo = useMemo(() => {
     const s = profile?.student || {};
@@ -460,7 +455,7 @@ export default function PlacementRequestSimple() {
   const submit = async (e) => {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     setSubmitError('');
-    if (!city.trim()) return toast.error('City is required');
+    setSubmitError('');
     if (!fydaFront || !fydaBack) return toast.error('FYDA front and back images are required');
     if (fydaFront && !String(fydaFront.type || '').startsWith('image/')) {
       return toast.error('FYDA front must be an image (JPG/PNG). PDFs are not allowed.');
@@ -494,7 +489,6 @@ export default function PlacementRequestSimple() {
       }
 
       const fd = new FormData();
-      fd.append('city', city.trim());
       fd.append('isStaffRelated', isStaffRelated);
       fd.append('isSpecialNeed', isSpecialNeed);
       fd.append('fydaFront', activeFront);
@@ -736,36 +730,7 @@ export default function PlacementRequestSimple() {
               </div>
             )}
 
-            {/* City Input */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
-                City of Origin <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 w-4 h-4" />
-                <input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all bg-white text-slate-800"
-                  placeholder="e.g. Bahir Dar, Addis Ababa"
-                />
-              </div>
-              {isAddis && isLikelyFarAddis && (
-                <div className="mt-3 flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-                  <FaInfoCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span>
-                    You indicated an <strong>outer / outskirts</strong> address. No additional letter is required.
-                    The server will still match your typed address to the English text on the back of your FYDA.
-                  </span>
-                </div>
-              )}
-              {needsCentralAddisLetter && (
-                <div className="mt-3 flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                  <FaInfoCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <span>Students from <strong>central</strong> Addis Ababa / Sheger / Finfinne must upload the additional letter.</span>
-                </div>
-              )}
-            </div>
+            {/* FYDA Documents */}
 
             {/* FYDA Documents */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -921,7 +886,7 @@ export default function PlacementRequestSimple() {
               </div>
             )}
             
-            {(studentTypeInfo.isSelfSponsored || isPaid) && (
+            {(existingApp?.status === 'PaymentPending' || isPaid) && (
               <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
@@ -981,7 +946,7 @@ export default function PlacementRequestSimple() {
                     <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-emerald-100 mb-4 relative z-10">
                       <p className="text-xs text-emerald-800 leading-relaxed font-medium">
                         Thank you! Your payment has been verified. 
-                        <strong> All your information (City, FYDA) has been preserved. Please review the details one last time and click the "Submit Request" button below to complete your placement.</strong>
+                        <strong> Your room assignment is being finalized automatically. You will see your room details here shortly.</strong>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
@@ -1128,23 +1093,25 @@ export default function PlacementRequestSimple() {
                 Cancel
               </button>
               
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium flex items-center gap-2 text-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {submitting ? (
-                  <>
-                    <FaSpinner className="w-4 h-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    Submit Request
-                    <FaChevronRight className="w-3 h-3" />
-                  </>
-                )}
-              </button>
+              {(!existingApp || existingApp.status === 'Pending' || existingApp.status === 'Rejected') && (
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium flex items-center gap-2 text-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {submitting ? (
+                    <>
+                      <FaSpinner className="w-4 h-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      Submit Request
+                      <FaChevronRight className="w-3 h-3" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </form>
         </div>

@@ -222,8 +222,7 @@ async function assignStudentToRoom(application, student) {
 const submitApplication = async (req, res) => {
   try {
     const reason = String(req.body.reason || 'Dorm placement request').trim();
-    const rawCity = String(req.body.city || '').trim();
-    const city = normalizeDeclaredCity(rawCity);
+    // CITY INPUT REMOVED: Detection is now automated via OCR
 
     const frontFile = req.files?.fydaFront?.[0] || req.files?.nationalIdFront?.[0];
     const backFile = req.files?.fydaBack?.[0] || req.files?.nationalIdBack?.[0];
@@ -252,9 +251,6 @@ const submitApplication = async (req, res) => {
         } catch (ocrErr) {
           if (ocrErr.message === 'OCR_TIMEOUT') {
             frontOcrTimedOut = true;
-            console.warn('Front OCR timed out after 15s.');
-          } else {
-            console.error('Front OCR Error:', ocrErr.message);
           }
         }
       })(),
@@ -264,50 +260,30 @@ const submitApplication = async (req, res) => {
         } catch (ocrErr) {
           if (ocrErr.message === 'OCR_TIMEOUT') {
             backOcrTimedOut = true;
-            console.warn('Back OCR timed out after 15s.');
-          } else {
-            console.error('Back OCR Error:', ocrErr.message);
           }
         }
       })(),
     ];
 
-    const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
-    if (isSelfSponsored) {
-      parallelTasks.push((async () => {
-        try {
-          paymentInfo = await initializeChapaPayment(student, 1500);
-        } catch (e) {
-          console.error('Chapa initialization failed:', e.message);
-        }
-      })());
-    }
+    // NOTE: Chapa initialization is now DEFERRED until a room is found.
 
     // Wait for all processes to finish or timeout
     await Promise.all(parallelTasks);
 
     // === STRICT VERIFICATION LOGIC ===
-    if (!city) {
-      return res.status(400).json({
-        success: false,
-        message: 'City is required and must match the FYDA back-side address.',
-      });
-    }
-
-    // LOGGING: Print full OCR text to console for debugging
-    console.log(`\n--- OCR DEBUG [${student.fullName}] ---`);
-    console.log(`Detected Front Text: ${frontText || "[Empty]"}`);
-    console.log(`Detected Address: ${backText || "[Empty]"}`);
-    console.log(`Applied City: ${city}`);
-
-    if (frontOcrTimedOut || backOcrTimedOut || !frontText || !backText) {
-      const timedOut = frontOcrTimedOut || backOcrTimedOut;
-      return res.status(400).json({
-        success: false,
-        message: timedOut
-          ? 'FYDA scan timed out. Please upload clearer front/back images (well-lit, upright, and close) and try again.'
-          : 'Could not verify FYDA images. Please upload clearer front and back images and try again.',
-      });
+    // === CITY DETECTION ===
+    let finalCity = citySuggestionFromBackOcr(backText);
+    if (!finalCity) {
+      // If we can't detect a specific city, we fall back to a region check
+      if (backOcrImpliesAddisArea(backText)) {
+        finalCity = 'Addis Ababa';
+      } else {
+        // Highly restrictive: if we can't reliably read the city, we can't process
+        return res.status(400).json({
+          success: false,
+          message: 'Could not reliably detect your city from the FYDA. Please ensure the back side is well-lit and clear.',
+        });
+      }
     }
 
     const nameMatches =
@@ -320,51 +296,44 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    let verificationNote = 'Strictly verified: FYDA front name and back-side city match.';
-    let finalCity = city;
-    const cityMatches = strictCityMatchFromBackOcr(city, backText);
-    if (!cityMatches) {
-      // Fallback: OCR can be noisy; allow near-match and auto-correct/notify.
-      const fuzzyMatch = cityMatchesBackOcr(city, backText);
-      const suggested = citySuggestionFromBackOcr(backText);
-      if (fuzzyMatch) {
-        if (suggested) {
-          finalCity = suggested;
-          verificationNote = `City auto-corrected from "${city}" to "${suggested}" using FYDA back-side OCR.`;
-        } else {
-          verificationNote = `City fuzzily verified from "${city}" using partial back-side text.`;
-        }
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: suggested
-            ? `Declared city does not match the FYDA back-side address. Please use the FYDA spelling (OCR detected: "${suggested}").`
-            : 'Declared city does not match the FYDA back-side address. Please use the exact city spelling from your FYDA.',
-        });
-      }
-    }
+    let verificationNote = `Automatically detected city: ${finalCity}`;
 
     const originVerified = true;
 
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
-    // Addis Ababa policy: verified Addis applicants wait 5 minutes, then background worker assigns.
-    // Other verified cities are assigned immediately.
     const addisWaitMs = 5 * 60 * 1000;
-    const requiresAddisWait = isAddis;
-    const hasPaid = !!req.files?.paymentReceipt?.[0];
-    
-    let paymentStatus = isSelfSponsored ? (hasPaid ? 'Paid' : 'Pending') : 'NotRequired';
+    const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
     
     let status = 'Pending';
     let scheduledReleaseAt = null;
+    let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
 
-    if (isSelfSponsored && !hasPaid) {
-      status = 'Pending'; // Needs payment
+    if (isAddis) {
+      // Addis residents must wait 5 minutes
+      status = 'Waiting';
+      scheduledReleaseAt = new Date(Date.now() + addisWaitMs);
+      paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     } else {
-      // Free or already paid
-      status = requiresAddisWait ? 'Waiting' : 'Assigned';
-      scheduledReleaseAt = requiresAddisWait ? new Date(Date.now() + addisWaitMs) : null;
+      // Outside Addis residents get immediate room check
+      const room = await findRoomForStudent(student, student.isSpecialNeed);
+      if (room) {
+        if (isSelfSponsored) {
+          status = 'PaymentPending';
+          paymentStatus = 'Pending';
+          // Initialize Chapa now for non-Addis
+          try {
+            paymentInfo = await initializeChapaPayment(student, 1500);
+          } catch (e) {
+            console.error('Chapa init failed:', e.message);
+          }
+        } else {
+          status = 'Assigned';
+          paymentStatus = 'NotRequired';
+        }
+      } else {
+        status = 'Pending'; // No room currently available
+      }
     }
 
     let chapaPaymentUrl = paymentInfo?.checkout_url || null;
@@ -400,35 +369,21 @@ const submitApplication = async (req, res) => {
       application = await DormApplication.create(appPayload);
     }
 
-    // NEW: If status became 'Assigned' right now, perform the actual room search
+    // If status became 'Assigned' (for non-Addis free students), save room link
     if (status === 'Assigned') {
-      try {
-        const success = await assignStudentToRoom(application, student);
-        if (!success) {
-          // No room currently available -> keep pending, no timed wait flow.
-          application.status = 'Pending';
-          application.scheduledReleaseAt = null;
-          await application.save();
-        }
-      } catch (assignErr) {
-        console.error(`Immediate assignment failed for ${student.fullName}:`, assignErr.message);
-        application.status = 'Pending';
-        application.scheduledReleaseAt = null;
-        await application.save();
-      }
+      await assignStudentToRoom(application, student);
     }
 
     await application.populate('student assignedRoom');
 
-    const message = application.status === 'Assigned'
-      ? 'Dorm automatically assigned!'
-      : application.status === 'Waiting'
-        ? 'Application submitted. Addis Ababa applications are assigned automatically after 5 minutes. You will receive a notification.'
-      : application.status === 'Pending'
-        ? 'Application submitted. Assignment will continue when space is available.'
-        : student.sponsorship === 'Self-Sponsored'
-          ? 'Please complete payment of 1,500 ETB to secure your dorm room.'
-          : 'Application submitted successfully.';
+    let message = 'Application submitted successfully.';
+    if (application.status === 'Waiting') {
+      message = 'City of Addis Ababa detected. Please wait 5 minutes while we verify on-campus room availability.';
+    } else if (application.status === 'PaymentPending') {
+      message = 'Room found! Please complete your payment to finalize assignment.';
+    } else if (application.status === 'Assigned') {
+      message = 'Success! Your room has been assigned.';
+    }
 
     return res.json({
       success: true,
@@ -457,32 +412,61 @@ const getMyApplication = async (req, res) => {
       return res.json({ success: true, application: null, message: 'No application submitted yet' });
     }
 
-    // AUTO-ASSIGN: If waiting period has expired, assign room now
+    // AUTO-ASSIGN: If waiting period has expired, check for room now
     if (application.status === 'Waiting' && application.scheduledReleaseAt) {
       const releaseTime = new Date(application.scheduledReleaseAt).getTime();
       if (Date.now() >= releaseTime) {
-        console.log(`⏰ Wait expired for ${student.fullName} — auto-assigning now...`);
+        console.log(`⏰ Wait expired for ${student.fullName} — checking room availability...`);
         try {
-          const success = await assignStudentToRoom(application, student);
-          if (success) {
-            await application.save();
-            // Send notification
-            try {
-              await Notification.create({
-                user: req.user._id,
-                type: 'DormApplication',
-                title: '🎉 Room Assigned!',
-                message: `You have been assigned a dorm room after the waiting period.`,
-                isSent: true
-              });
-            } catch (notifErr) {
-              console.error('Notification error:', notifErr.message);
-            }
+          const room = await findRoomForStudent(student, student.isSpecialNeed);
+          const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
+
+          if (room) {
+             if (isSelfSponsored) {
+                // MOVE TO PAYMENT PENDING
+                application.status = 'PaymentPending';
+                application.scheduledReleaseAt = null;
+                // Initialize Chapa now that we confirmed a room exists
+                try {
+                   const paymentInfo = await initializeChapaPayment(student, 1500);
+                   application.chapaTxRef = paymentInfo?.tx_ref || null;
+                } catch (pe) {
+                   console.error('Chapa init error in polling:', pe.message);
+                }
+                
+                await Notification.create({
+                  user: req.user._id,
+                  type: 'DormApplication',
+                  title: '🏠 Room Found - Payment Required',
+                  message: `A room has been found on your campus. Please complete your payment to finalize assignment.`,
+                  isSent: true
+                });
+             } else {
+                // ATTEMPT ASSIGNMENT (for free students)
+                const success = await assignStudentToRoom(application, student);
+                if (success) {
+                   await Notification.create({
+                     user: req.user._id,
+                     type: 'DormApplication',
+                     title: '🎉 Room Assigned!',
+                     message: `Verification complete. You have been assigned to ${application.assignedRoom?.roomNumber || 'your room'}.`,
+                     isSent: true
+                   });
+                }
+             }
           } else {
+            // NO ROOM FOUND
             application.status = 'Pending';
             application.scheduledReleaseAt = null;
-            await application.save();
+            await Notification.create({
+               user: req.user._id,
+               type: 'DormApplication',
+               title: '⏳ No Current Vacancy',
+               message: `We verified your location, but no rooms are currently available on your campus. You are now in the queue.`,
+               isSent: true
+            });
           }
+          await application.save();
           // Re-populate after changes
           application = await DormApplication.findOne({ student: student._id }).populate('student assignedRoom');
         } catch (assignErr) {

@@ -71,6 +71,12 @@ const uploadsDir = path.join(__dirname, 'uploads');
 console.log(`📂 Serving static files from: ${uploadsDir}`);
 app.use('/uploads', express.static(uploadsDir));
 
+// Vercel /tmp Serving (for temporary uploads if not found in project root)
+if (process.env.VERCEL) {
+  console.log('🚀 Enabling Vercel /tmp static serving...');
+  app.use('/uploads', express.static('/tmp'));
+}
+
 // Serverless database connection caching
 let cached = global.mongoose;
 

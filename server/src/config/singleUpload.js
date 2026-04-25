@@ -17,11 +17,12 @@ function safeUserId(userID) {
 function createSingleUpload(subDir) {
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      if (process.env.VERCEL) {
-        return cb(null, '/tmp');
-      }
-      const dir = path.join('uploads', subDir, safeUserId(req.user?.userID));
-      ensureDir(dir);
+      // Always store in a subfolder of uploads
+      const dir = process.env.VERCEL 
+        ? '/tmp' 
+        : path.join('uploads', subDir, safeUserId(req.user?.userID));
+      
+      if (!process.env.VERCEL) ensureDir(dir);
       cb(null, dir);
     },
     filename: (req, file, cb) => {

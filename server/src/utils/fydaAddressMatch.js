@@ -149,6 +149,34 @@ function qualifiesForImmediateDorm(city, backOcrText) {
 
   return { eligible: false, reason: 'central_addis_or_review' };
 }
+/**
+ * Attempt to extract a city/town name from the OCR text.
+ */
+function citySuggestionFromBackOcr(backOcrText) {
+  const text = normalizeAscii(backOcrText);
+  if (!text) return null;
+
+  const COMMON_CITIES = [
+    'Addis Ababa', 'Bahir Dar', 'Gondar', 'Mekelle', 'Adama', 'Hawassa', 'Dire Dawa',
+    'Dessie', 'Jimma', 'Jijiga', 'Shashamane', 'Bishoftu', 'Sodo', 'Arba Minch',
+    'Hosaena', 'Dila', 'Nekemte', 'Debre Birhan', 'Asella', 'Debre Markos', 'Kombolcha',
+    'Gambela', 'Asosa', 'Semera', 'Logia', 'Harar', 'Chiro', 'Goba', 'Robe', 'Bale',
+    'Fitche', 'Ambo', 'Waliso', 'Butajira', 'Hosanna', 'Arezzo', 'Woldia', 'Alamata'
+  ];
+
+  for (const city of COMMON_CITIES) {
+    if (strictContains(text, normalizeAscii(city))) {
+        return city;
+    }
+  }
+
+  // Fallback for Addis area synonyms
+  if (text.includes('sheger') || text.includes('finfinne') || text.includes('finfine')) {
+    return 'Addis Ababa';
+  }
+
+  return null;
+}
 
 module.exports = {
   normalizeAscii,
@@ -159,4 +187,5 @@ module.exports = {
   impliesFarAddis,
   qualifiesForImmediateDorm,
   strictContains,
+  citySuggestionFromBackOcr
 };

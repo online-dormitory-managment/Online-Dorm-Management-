@@ -230,14 +230,16 @@ export default function Profile() {
                 ) : (
                   <>
                     <h2 className="text-xl font-bold text-slate-900">{displayName}</h2>
-                    <button
-                      type="button"
-                      onClick={startNameEdit}
-                      className="p-2 rounded-lg text-slate-400 hover:text-blue-600"
-                      title="Edit name"
-                    >
-                      <FaEdit className="w-4 h-4" />
-                    </button>
+                    {user?.role !== 'Student' && (
+                      <button
+                        type="button"
+                        onClick={startNameEdit}
+                        className="p-2 rounded-lg text-slate-400 hover:text-blue-600"
+                        title="Edit name"
+                      >
+                        <FaEdit className="w-4 h-4" />
+                      </button>
+                    )}
                   </>
                 )}
               </div>
