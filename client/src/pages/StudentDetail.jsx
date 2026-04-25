@@ -15,6 +15,7 @@ import {
 import adminApi from '../api/adminApi';
 import toast from 'react-hot-toast';
 import AdminHeader from '../components/layout/AdminHeader';
+import { getUploadBaseUrl } from '../utils/apiConfig';
 
 export default function StudentDetail() {
   const { id } = useParams();
@@ -120,7 +121,7 @@ export default function StudentDetail() {
     if (filePath.startsWith('http')) return filePath;
     // Remove leading slash if present and construct URL
     const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-    const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const baseURL = getUploadBaseUrl();
     // Files are served from /uploads route
     return `${baseURL}/${cleanPath}`;
   };

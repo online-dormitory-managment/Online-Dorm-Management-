@@ -18,10 +18,12 @@ import logoImg from '../../assets/logo/logo.png';
 import notificationApi from '../../api/notificationApi';
 import authApi from '../../api/authApi';
 import toast from 'react-hot-toast';
+import { getUploadBaseUrl } from '../../utils/apiConfig';
 
 export default function SuperAdminHeader() {
   const location = useLocation();
   const navigate = useNavigate();
+  const uploadBase = getUploadBaseUrl();
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -255,7 +257,7 @@ export default function SuperAdminHeader() {
               <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border border-blue-200 dark:border-blue-800 shrink-0 overflow-hidden">
                 {user.profilePicture ? (
                   <img 
-                    src={user.profilePicture.startsWith('http') ? user.profilePicture : `http://localhost:5000/${user.profilePicture}`} 
+                    src={user.profilePicture.startsWith('http') ? user.profilePicture : `${uploadBase}/${user.profilePicture}`} 
                     alt="Profile" 
                     className="w-full h-full object-cover"
                     onError={(e) => { e.target.classList.add('hidden'); e.target.nextElementSibling?.classList.remove('hidden'); }}

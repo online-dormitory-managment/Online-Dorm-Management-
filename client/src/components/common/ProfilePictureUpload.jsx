@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { FaCamera, FaSpinner, FaUser, FaCloudUploadAlt } from 'react-icons/fa';
 import authApi from '../../api/authApi';
 import toast from 'react-hot-toast';
+import { getUploadBaseUrl } from '../../utils/apiConfig';
 
 const ProfilePictureUpload = ({ currentImage, onUploadSuccess, size = 'large' }) => {
   const [uploading, setUploading] = useState(false);
@@ -41,7 +42,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess, size = 'large' })
     fileInputRef.current?.click();
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const API_BASE = getUploadBaseUrl();
   const imageUrl = currentImage ? `${API_BASE}/${currentImage}` : null;
 
   const sizeClasses = {

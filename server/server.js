@@ -207,30 +207,34 @@ const createTestUser = async () => {
   if (process.env.NODE_ENV !== 'production') {
     try {
       // Check if test student exists
-      const existingStudent = await Student.findOne({ studentId: 'UGR/0001/15' });
+      const existingStudent = await Student.findOne({ studentID: 'UGR/0001/15' });
 
       if (!existingStudent) {
-        const testStudent = new Student({
-          studentId: 'UGR/0001/15',
-          registrationNumber: 'UGR/0001/15',
-          fullName: 'Belaynesh Getachew',
+        // Create a user first, then a schema-compliant student linked to that user.
+        const bcrypt = require('bcryptjs');
+        const hashedPassword = await bcrypt.hash('0001', 12);
+        const testUser = new User({
+          userID: 'UGR/0001/15',
+          name: 'Belaynesh Getachew',
           email: 'belaynesh@university.edu',
+          password: hashedPassword,
+          role: 'Student',
+          isFirstLogin: true
+        });
+        await testUser.save();
+
+        const testStudent = new Student({
+          user: testUser._id,
+          studentID: 'UGR/0001/15',
+          fullName: 'Belaynesh Getachew',
+          year: 3,
           department: 'Computer Science',
-          academicYear: '2024-2025',
-          yearOfStudy: 3,
           gender: 'Female',
-          origin: 'Addis Ababa, Ethiopia',
-          sponsorship: 'Government',
-          phone: '+251911223344',
-          emergencyContact: {
-            name: 'Getachew Kebede',
-            relationship: 'Father',
-            phone: '+251922334455'
-          }
+          sponsorship: 'Government'
         });
 
         await testStudent.save();
-        console.log('✅ Test student created:', testStudent.fullName);
+        console.log('✅ Test student created and linked:', testStudent.fullName);
       }
 
       // Check if test user exists

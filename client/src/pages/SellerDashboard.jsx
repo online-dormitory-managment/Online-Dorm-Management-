@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import marketplaceApi from '../api/marketplaceApi';
 import authApi from '../api/authApi';
+import { uploadUrl } from '../utils/uploadUrl';
 
 export default function SellerDashboard() {
   const navigate = useNavigate();
@@ -158,7 +159,7 @@ export default function SellerDashboard() {
                 <div key={item._id} className="p-6 flex items-center gap-6 hover:bg-slate-50 transition-colors">
                   <div className="w-16 h-16 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex-shrink-0">
                     {item.image?.path ? (
-                      <img src={`http://localhost:5000/${item.image.path}`} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={uploadUrl(item.image.path)} alt={item.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-300">
                         <FaBox />
