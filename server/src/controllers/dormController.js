@@ -376,15 +376,13 @@ const submitApplication = async (req, res) => {
 
     await application.populate('student assignedRoom');
 
-    let message = 'Your application has been received and is being processed.';
+    let message = 'Application submitted successfully.';
     if (application.status === 'Waiting') {
-      message = 'Addis Ababa origin detected. Your application is now in the mandatory 5-minute verification queue. Please check back shortly for room availability and payment instructions.';
+      message = 'City of Addis Ababa detected. Please wait 5 minutes while we verify on-campus room availability.';
     } else if (application.status === 'PaymentPending') {
-      message = 'Good news! A room has been found on your campus. Please proceed to payment to secure your placement.';
+      message = 'Room found! Please complete your payment to finalize assignment.';
     } else if (application.status === 'Assigned') {
-      message = 'Success! Your room has been assigned immediately based on your origin and sponsorship.';
-    } else if (application.status === 'Pending') {
-      message = 'Application received. We are currently searching for available rooms on your campus. Please check back later.';
+      message = 'Success! Your room has been assigned.';
     }
 
     return res.json({
@@ -560,46 +558,39 @@ const verifyChapaPayment = async (req, res) => {
     }
 
     const now = new Date();
-    const isAddis = String(application.city || '').trim().toLowerCase() === 'addis ababa';
-    const isSelfSponsored = application.student?.sponsorship === 'Self-Sponsored';
-
     application.paymentStatus = 'Paid';
-    
-    // Required flow: payment is the FINAL step.
-    // Assign room if they were in PaymentPending status.
-    if (application.status === 'PaymentPending') {
-      await assignStudentToRoom(application, application.student);
-    }
-    console.log(`✅ Payment verified for ${application.student?.fullName}. Current assignment status: "${application.status}".`);
-
     application.paymentVerifiedAt = now;
+
+    // Logic: If status was PaymentPending, it means they already waited (if Addis) 
+    // or skipped wait (if non-Addis) and a room was confirmed available.
+    // Now we assign it!
+    if (application.status === 'PaymentPending') {
+      console.log(`🏠 Assigning room for ${application.student?.fullName || 'student'} after payment...`);
+      const success = await assignStudentToRoom(application, application.student);
+      if (success) {
+        console.log(`✅ Room assigned successfully after payment.`);
+      }
+    }
+
     await application.save();
 
-    // Create Notification for the student
+    // Create Notification
     try {
       await Notification.create({
         user: application.student.user,
         type: 'Payment',
-        title: 'Payment Verified',
-        message: `Your payment of 1,500 ETB has been verified. Room assigned: ${application.assignedRoom ? 'Assigned' : 'Pending Room Allocation'}.`,
-        isSent: true
-      });
-
-      await Notification.create({
-        user: application.student.user,
-        type: 'DormApplication',
-        title: 'Payment linked',
-        message: 'Your payment has been linked to your dorm application.',
+        title: '💰 Payment Verified',
+        message: `Your payment of 1,500 ETB has been verified. ${application.status === 'Assigned' ? 'Your room has been assigned!' : 'Your application is being finalized.'}`,
         isSent: true
       });
     } catch (notifErr) {
-      console.error('Error creating notification:', notifErr);
+      console.error('Error creating notification:', notifErr.message);
     }
 
     res.status(200).send('OK');
   } catch (err) {
     console.error('Webhook error:', err);
-    res.status(200).send('OK');
+    res.status(500).send('Webhook Error');
   }
 };
 

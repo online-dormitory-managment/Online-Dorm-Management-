@@ -467,7 +467,8 @@ export default function PlacementRequestSimple() {
 
     // Addis letter: server validates after OCR (central Addis vs outskirts on ID text).
     // Note: Letter requirement is bypassed for automated 5-min test on backend too.
-    if (studentTypeInfo.isSelfSponsored && !isPaid && !paymentReceipt) return toast.error('Payment is required for self-sponsored students');
+    // Payment check removed here because self-sponsored students now pay AFTER submission 
+    // when a room is confirmed (or wait 5 mins for Addis).
 
     setSubmitting(true);
     const loadingToast = toast.loading(isAddis ? 'Preparing your Addis Ababa application...' : 'Submitting placement request...');
@@ -502,15 +503,27 @@ export default function PlacementRequestSimple() {
 
       const status = res?.application?.status;
 
-      // Global success handling
-      toast.success(res.message || 'Application submitted successfully!', { duration: 6000 });
-      setExistingApp(res.application);
-      await clearDraft();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-
-      // Auto-redirect if already fully assigned
       if (status === 'Assigned') {
-        setTimeout(() => navigate('/student-portal'), 3000);
+        toast.success('Success! You have been assigned a dorm room.');
+        await clearDraft();
+        navigate('/student-portal');
+      } else if (status === 'Waiting') {
+        toast.success('Application submitted! Please wait 5 minutes for automatic room assignment.', { duration: 6000, icon: '⏳' });
+        setExistingApp(res.application);
+        await clearDraft();
+        // Stay on this page to show the countdown timer
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (status === 'PaymentPending') {
+        toast.success(res?.message || 'Room found! Please complete payment.', { icon: '💰' });
+        setExistingApp(res.application);
+        await clearDraft();
+        // If we have a payment URL from server, we could redirect, 
+        // but showing the payment block on this page is safer for data flow.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        toast.success(res?.message || 'Submitted successfully.');
+        await clearDraft();
+        navigate('/student-portal');
       }
     } catch (err) {
       toast.dismiss(loadingToast);
@@ -658,10 +671,10 @@ export default function PlacementRequestSimple() {
                   <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
                     <FaCalendarAlt className="w-8 h-8 text-blue-600" />
                   </div>
-                  <h3 className="text-xl font-black text-blue-900">Please Wait — Room Searching in Progress</h3>
+                  <h3 className="text-xl font-black text-blue-900">Please Wait — Room Assignment in Progress</h3>
                   <p className="text-sm text-blue-700 max-w-md mx-auto">
-                    As an Addis Ababa applicant, your application requires a <strong>5-minute verification period</strong>. 
-                    Once the timer ends, if a room is available on your campus, you will be notified to <strong>complete your payment</strong>.
+                    As an Addis Ababa applicant, your application requires a <strong>5-minute waiting period</strong> before automatic room assignment. 
+                    Once confirmed, you will be notified to <strong>pay the fee</strong> and secure your spot.
                   </p>
                   {timeLeft ? (
                     <div className="inline-flex items-center gap-3 bg-white rounded-2xl px-8 py-4 border-2 border-blue-200 shadow-sm">
@@ -694,15 +707,30 @@ export default function PlacementRequestSimple() {
                 </div>
               )}
 
-              {/* OTHER STATUSES — Simple display */}
-              {existingApp.status !== 'Waiting' && existingApp.status !== 'Assigned' && (
+              {/* PAYMENT PENDING STATUS — Prominent call to action */}
+              {existingApp.status === 'PaymentPending' && (
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 mx-auto bg-amber-100 rounded-full flex items-center justify-center">
+                    <FaCreditCard className="w-8 h-8 text-amber-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900">Room Confirmed — Payment Required</h3>
+                  <p className="text-sm text-slate-600 mb-6">
+                    A room has been found on your campus! To secure your spot, please complete the payment below.
+                  </p>
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-left text-xs text-slate-500">
+                    <p className="font-bold mb-1 uppercase tracking-wider">Note:</p>
+                    Once payment is verified, your room will be assigned automatically.
+                  </div>
+                </div>
+              )}
+
+              {/* OTHER STATUSES (Pending, Rejected, etc) */}
+              {!['Waiting', 'Assigned', 'PaymentPending'].includes(existingApp.status) && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">Current placement request</h3>
                   <p className="text-sm text-gray-700">
-                    Status: <span className="font-semibold text-blue-600">{existingApp.status}</span>
-                    {existingApp.status === 'PaymentPending' && (
-                       <span className="ml-2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold animate-pulse">Action Required: Pay Now</span>
-                    )}
+                    Status: <span className="font-semibold">{existingApp.status}</span>
+                    {existingApp.city ? ` • City: ${existingApp.city}` : ''}
                   </p>
                   {existingApp.notes && (
                     <p className="mt-2 text-sm text-gray-600">Note: {existingApp.notes}</p>
@@ -712,9 +740,6 @@ export default function PlacementRequestSimple() {
                       Payment: <span className="font-semibold">{existingApp.paymentStatus}</span>
                     </p>
                   )}
-                  <p className="mt-3 text-xs text-gray-500">
-                    If you need to fix something, you can submit again — your latest submission replaces the old one.
-                  </p>
                 </div>
               )}
             </div>
