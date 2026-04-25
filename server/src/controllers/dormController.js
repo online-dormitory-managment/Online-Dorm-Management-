@@ -177,6 +177,7 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
     isFull: false,
     gender: roomGenderFilter(student.gender),
     campus,
+    $expr: { $lt: ["$currentOccupants", "$capacity"] }
   };
 
   if (isSpecialNeed) {
@@ -191,6 +192,7 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
   const overflowQuery = {
     isFull: false,
     gender: roomGenderFilter(student.gender),
+    $expr: { $lt: ["$currentOccupants", "$capacity"] }
   };
   if (isSpecialNeed) {
     const firstFloors = await Floor.find({ floorNumber: 1 });
