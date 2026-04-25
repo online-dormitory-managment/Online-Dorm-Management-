@@ -502,20 +502,15 @@ export default function PlacementRequestSimple() {
 
       const status = res?.application?.status;
 
+      // Global success handling
+      toast.success(res.message || 'Application submitted successfully!', { duration: 6000 });
+      setExistingApp(res.application);
+      await clearDraft();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Auto-redirect if already fully assigned
       if (status === 'Assigned') {
-        toast.success('Success! You have been assigned a dorm room.');
-        await clearDraft();
-        navigate('/student-portal');
-      } else if (status === 'Waiting') {
-        toast.success('Application submitted! Please wait 5 minutes for automatic room assignment.', { duration: 6000, icon: '⏳' });
-        setExistingApp(res.application);
-        await clearDraft();
-        // Stay on this page to show the countdown timer
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        toast.success(res?.message || 'Submitted successfully.');
-        await clearDraft();
-        navigate('/student-portal');
+        setTimeout(() => navigate('/student-portal'), 3000);
       }
     } catch (err) {
       toast.dismiss(loadingToast);
@@ -663,10 +658,10 @@ export default function PlacementRequestSimple() {
                   <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
                     <FaCalendarAlt className="w-8 h-8 text-blue-600" />
                   </div>
-                  <h3 className="text-xl font-black text-blue-900">Please Wait — Room Assignment in Progress</h3>
+                  <h3 className="text-xl font-black text-blue-900">Please Wait — Room Searching in Progress</h3>
                   <p className="text-sm text-blue-700 max-w-md mx-auto">
-                    As an Addis Ababa applicant, your application requires a <strong>5-minute waiting period</strong> before automatic room assignment. 
-                    Your payment has been processed — <strong>no further action is needed</strong>.
+                    As an Addis Ababa applicant, your application requires a <strong>5-minute verification period</strong>. 
+                    Once the timer ends, if a room is available on your campus, you will be notified to <strong>complete your payment</strong>.
                   </p>
                   {timeLeft ? (
                     <div className="inline-flex items-center gap-3 bg-white rounded-2xl px-8 py-4 border-2 border-blue-200 shadow-sm">
@@ -704,8 +699,10 @@ export default function PlacementRequestSimple() {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">Current placement request</h3>
                   <p className="text-sm text-gray-700">
-                    Status: <span className="font-semibold">{existingApp.status}</span>
-                    {existingApp.city ? ` • City: ${existingApp.city}` : ''}
+                    Status: <span className="font-semibold text-blue-600">{existingApp.status}</span>
+                    {existingApp.status === 'PaymentPending' && (
+                       <span className="ml-2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold animate-pulse">Action Required: Pay Now</span>
+                    )}
                   </p>
                   {existingApp.notes && (
                     <p className="mt-2 text-sm text-gray-600">Note: {existingApp.notes}</p>

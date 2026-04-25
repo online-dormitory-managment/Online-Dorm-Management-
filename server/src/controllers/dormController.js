@@ -376,13 +376,15 @@ const submitApplication = async (req, res) => {
 
     await application.populate('student assignedRoom');
 
-    let message = 'Application submitted successfully.';
+    let message = 'Your application has been received and is being processed.';
     if (application.status === 'Waiting') {
-      message = 'City of Addis Ababa detected. Please wait 5 minutes while we verify on-campus room availability.';
+      message = 'Addis Ababa origin detected. Your application is now in the mandatory 5-minute verification queue. Please check back shortly for room availability and payment instructions.';
     } else if (application.status === 'PaymentPending') {
-      message = 'Room found! Please complete your payment to finalize assignment.';
+      message = 'Good news! A room has been found on your campus. Please proceed to payment to secure your placement.';
     } else if (application.status === 'Assigned') {
-      message = 'Success! Your room has been assigned.';
+      message = 'Success! Your room has been assigned immediately based on your origin and sponsorship.';
+    } else if (application.status === 'Pending') {
+      message = 'Application received. We are currently searching for available rooms on your campus. Please check back later.';
     }
 
     return res.json({
@@ -562,12 +564,11 @@ const verifyChapaPayment = async (req, res) => {
     const isSelfSponsored = application.student?.sponsorship === 'Self-Sponsored';
 
     application.paymentStatus = 'Paid';
-    // Required flow: Addis + self-sponsored enters 5-minute waiting queue after payment.
-    if (isAddis && isSelfSponsored) {
-      application.status = 'Waiting';
-      application.assignedRoom = null;
-      application.paymentQueuedAt = now;
-      application.scheduledReleaseAt = new Date(now.getTime() + ADDIS_WAIT_MS);
+    
+    // Required flow: payment is the FINAL step.
+    // Assign room if they were in PaymentPending status.
+    if (application.status === 'PaymentPending') {
+      await assignStudentToRoom(application, application.student);
     }
     console.log(`✅ Payment verified for ${application.student?.fullName}. Current assignment status: "${application.status}".`);
 
