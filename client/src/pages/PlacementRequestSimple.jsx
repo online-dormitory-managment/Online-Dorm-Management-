@@ -180,11 +180,11 @@ export default function PlacementRequestSimple() {
   // Persistence: Save draft whenever text fields change, BUT ONLY after initial load
   useEffect(() => {
     if (draftLoaded) {
-      saveDraft({ city, isStaffRelated, isSpecialNeed, notes: existingApp?.notes }, {
+      saveDraft({ isStaffRelated, isSpecialNeed, notes: existingApp?.notes }, {
         fydaFront, fydaBack, addisLetter, paymentReceipt
       });
     }
-  }, [city, isStaffRelated, isSpecialNeed, fydaFront, fydaBack, addisLetter, paymentReceipt, draftLoaded]);
+  }, [isStaffRelated, isSpecialNeed, fydaFront, fydaBack, addisLetter, paymentReceipt, draftLoaded]);
 
   // Effect 1: Load Profile, Existing Application, and Draft
   useEffect(() => {
@@ -194,9 +194,10 @@ export default function PlacementRequestSimple() {
         const draft = await loadDraft();
         console.log('Loading Draft on Mount:', draft);
         
-        if (draft.city) setCity(draft.city);
-        if (draft.isStaffRelated !== undefined) setIsStaffRelated(draft.isStaffRelated);
-        if (draft.isSpecialNeed !== undefined) setIsSpecialNeed(draft.isSpecialNeed);
+        if (draft) {
+          if (draft.isStaffRelated !== undefined) setIsStaffRelated(draft.isStaffRelated);
+          if (draft.isSpecialNeed !== undefined) setIsSpecialNeed(draft.isSpecialNeed);
+        }
         
         if (draft.files) {
           const newPreviews = {};
@@ -226,7 +227,7 @@ export default function PlacementRequestSimple() {
         if (res?.success) {
           setProfile(res);
           // Only overwrite text fields if not already loaded from draft
-          if (res.student && !draft.city) {
+          if (res.student && !draft.isStaffRelated && !draft.isSpecialNeed) {
             setIsStaffRelated(!!res.student.isStaffRelated);
             setIsSpecialNeed(!!res.student.isSpecialNeed);
           }
