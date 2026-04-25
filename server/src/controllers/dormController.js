@@ -222,14 +222,19 @@ async function assignStudentToRoom(application, student) {
     
     // Notify the student regarding the campus shift
     try {
-      await Notification.create({
-        user: student.user,
-        type: 'DormApplication',
-        title: '📍 Campus Allocation Adjust',
-        message: `Important: Your preferred campus was at full capacity. You have been assigned to ${campus || 'an alternative campus'} to ensure you have housing.`,
-        isSent: true
-      });
-    } catch (e) {}
+      const studentUser = student.user?._id || student.user; 
+      if (studentUser) {
+        await Notification.create({
+          user: studentUser,
+          type: 'DormApplication',
+          title: '📍 Campus Allocation Adjust',
+          message: `Important: Your preferred campus was at full capacity. You have been assigned to ${campus || 'an alternative campus'} to ensure you have housing.`,
+          isSent: true
+        });
+      }
+    } catch (e) {
+      console.error('Failed to send overflow notification:', e.message);
+    }
   }
 
   room.currentOccupants = (room.currentOccupants || 0) + 1;
