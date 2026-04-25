@@ -23,6 +23,10 @@ function normalizeUgrInput(raw) {
   return `UGR/${parts[1]}/${parts[2]}`;
 }
 
+function isBcryptHash(value) {
+  return /^\$2[abxy]\$\d{2}\$/.test(String(value || ''));
+}
+
 // Unified login for Student / Proctor / Admin
 const loginUser = async (req, res) => {
   let userId = (req.body.userId || req.body.userID || req.body.studentId || '')
@@ -84,7 +88,18 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const isPasswordValid = await bcrypt.compare(passwordPlain, user.password);
+    let isPasswordValid = false;
+    if (isBcryptHash(user.password)) {
+      isPasswordValid = await bcrypt.compare(passwordPlain, user.password);
+    } else {
+      // Legacy data compatibility: allow plain-text stored passwords once,
+      // then upgrade them to bcrypt immediately on successful login.
+      isPasswordValid = String(passwordPlain) === String(user.password || '').trim();
+      if (isPasswordValid) {
+        user.password = String(passwordPlain).trim();
+        await user.save();
+      }
+    }
     console.log(`🔍 Password check for ${user.userID}: ${isPasswordValid ? 'MATCH' : 'FAIL'}`);
     if (!isPasswordValid) {
       console.log('❌ Invalid password for user:', userId);
