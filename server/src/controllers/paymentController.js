@@ -5,6 +5,7 @@ const DormApplication = require('../models/DormApplication');
 const Student = require('../models/Student');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
+const { assignStudentToRoom } = require('./dormController');
 
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
@@ -218,12 +219,12 @@ const finalizeVerification = async (chapaData, req, res) => {
         application.paymentVerifiedAt = now;
         application.chapaTxRef = tx_ref;
 
-        // Required flow: for Addis + self-sponsored, payment triggers 5-minute waiting queue.
-        if (isAddis && isSelfSponsored) {
-          application.status = 'Waiting';
-          application.assignedRoom = null;
-          application.paymentQueuedAt = now;
-          application.scheduledReleaseAt = new Date(now.getTime() + ADDIS_WAIT_MS);
+        // If status was PaymentPending, it means they already waited (if Addis) 
+        // or skipped wait (if non-Addis) and a room was confirmed available.
+        // Now we assign it!
+        if (application.status === 'PaymentPending') {
+          console.log(`🏠 Manual verify: Assigning room for ${application.student?.fullName || 'student'}...`);
+          await assignStudentToRoom(application, application.student);
         }
 
         await application.save();
