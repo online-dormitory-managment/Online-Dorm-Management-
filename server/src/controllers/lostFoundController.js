@@ -34,6 +34,7 @@ exports.createItem = async (req, res) => {
 
     console.log('📦 Creating LostFoundItem with payload:', { type: t, itemName: name, category: cat, reportedBy: req.user._id });
     
+    const { normalizeFilePath } = require('../utils/fileNormalization');
     const item = await LostFoundItem.create({
       type: t,
       itemName: name,
@@ -44,7 +45,7 @@ exports.createItem = async (req, res) => {
       contactInfo: contactInfo || '',
       additionalContact: additionalContact || '',
       image: req.file
-        ? { path: req.file.path, originalName: req.file.originalname, mimeType: req.file.mimetype }
+        ? { path: normalizeFilePath(req.file.path), originalName: req.file.originalname, mimeType: req.file.mimetype }
         : undefined,
       reportedBy: req.user._id
     });

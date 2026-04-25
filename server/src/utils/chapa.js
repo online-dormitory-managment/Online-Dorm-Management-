@@ -5,8 +5,13 @@ function buildPlacementReturnUrl() {
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
   if (explicit) return explicit;
 
-  const frontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
-  if (!frontend) return '';
+  const frontend = (process.env.FRONTEND_URL || 'https://online-dormitory-managment.vercel.app').trim().replace(/\/+$/, '');
+  
+  // If we're on localhost and FRONTEND_URL isn't set, default to common vite port
+  if (!process.env.FRONTEND_URL && !process.env.VERCEL) {
+    return `http://localhost:5173/placement-request?payment=success`;
+  }
+
   return `${frontend}/placement-request?payment=success`;
 }
 

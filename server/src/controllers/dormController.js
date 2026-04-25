@@ -48,6 +48,7 @@ const Room = require('../models/Room');
 const Floor = require('../models/Floor');
 const Notification = require('../models/Notification');
 const ADDIS_WAIT_MS = 5 * 60 * 1000;
+const { normalizeFilePath } = require('../utils/fileNormalization');
 
 function roomGenderFilter(gender) {
   return { $in: [gender, 'Mixed'] };
@@ -184,33 +185,53 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
   }
 
   let room = await Room.findOne(query).populate('building');
+  if (room) return { room, isOverflow: false, campus: query.campus };
 
-  if (!room) {
-    // If specific campus + special need / normal fails, try global fallback
-    let fallbackQuery = {
-      isFull: false,
-      gender: roomGenderFilter(student.gender),
-    };
-    if (isSpecialNeed) {
-      const firstFloors = await Floor.find({ floorNumber: 1 });
-      fallbackQuery.floor = { $in: firstFloors.map((f) => f._id) };
-    }
-    room = await Room.findOne(fallbackQuery).populate('building');
+  // If specific campus failed, try global fallback (ANY campus with same gender)
+  const overflowQuery = {
+    isFull: false,
+    gender: roomGenderFilter(student.gender),
+  };
+  if (isSpecialNeed) {
+    const firstFloors = await Floor.find({ floorNumber: 1 });
+    overflowQuery.floor = { $in: firstFloors.map((f) => f._id) };
+  }
+  
+  room = await Room.findOne(overflowQuery).populate('building');
+  if (room) {
+    return { room, isOverflow: true, campus: room.campus };
   }
 
-  return room;
+  return { room: null, isOverflow: false };
 }
 
 async function assignStudentToRoom(application, student) {
-  const room = await findRoomForStudent(student, student.isSpecialNeed);
+  const { room, isOverflow, campus } = await findRoomForStudent(student, student.isSpecialNeed);
   if (!room) {
     application.status = 'Pending';
-    application.originVerificationNote = `${application.originVerificationNote || ''} No vacant room found for auto-assign (try campus-wide).`.trim();
+    application.originVerificationNote = `${application.originVerificationNote || ''} No vacant room found even after campus overflow search.`.trim();
     return false;
   }
 
   application.assignedRoom = room._id;
   application.status = 'Assigned';
+  
+  if (isOverflow) {
+    const note = `Assigned to ${campus || 'Alternative'} Campus due to full capacity at preferred location.`;
+    application.originVerificationNote = `${application.originVerificationNote || ''} ${note}`.trim();
+    
+    // Notify the student regarding the campus shift
+    try {
+      await Notification.create({
+        user: student.user,
+        type: 'DormApplication',
+        title: '📍 Campus Allocation Adjust',
+        message: `Important: Your preferred campus was at full capacity. You have been assigned to ${campus || 'an alternative campus'} to ensure you have housing.`,
+        isSent: true
+      });
+    } catch (e) {}
+  }
+
   room.currentOccupants = (room.currentOccupants || 0) + 1;
   room.isFull = room.currentOccupants >= (room.capacity || 4);
   if (!room.assignedStudents) room.assignedStudents = [];
@@ -342,14 +363,12 @@ const submitApplication = async (req, res) => {
     // Immediate assignment attempt only when not in Addis waiting window.
 
     // ==================== SAVE APPLICATION ====================
-    const rel = (p) => path.relative(process.cwd(), p).replace(/\\/g, '/');
-
     const appPayload = {
       student: student._id,
       reason,
       city: finalCity,
-      nationalIdFront: rel(frontFile.path),
-      nationalIdBack: rel(backFile.path),
+      nationalIdFront: normalizeFilePath(frontFile.path),
+      nationalIdBack: normalizeFilePath(backFile.path),
       extractedAddress: extractAddressRegionFromBackOcr(backText) || backText.slice(0, 8000),
       isOutsideAddisSheger: !isAddis,
       isFarAddisOutskirts: isFar,
@@ -516,16 +535,8 @@ const assignPendingApplications = async (req, res) => {
     for (const app of pendingApplications) {
       if (!app.student) continue;
 
-      const room = await findRoomForStudent(app.student);
-
-      if (room) {
-        app.status = 'Assigned';
-        app.assignedRoom = room._id;
-        room.currentOccupants = (room.currentOccupants || 0) + 1;
-        room.isFull = room.currentOccupants >= (room.capacity || 4);
-        if (!room.assignedStudents) room.assignedStudents = [];
-        room.assignedStudents.push(app.student._id);
-        await room.save();
+      const success = await assignStudentToRoom(app, app.student);
+      if (success) {
         await app.save();
         assignedCount++;
       }

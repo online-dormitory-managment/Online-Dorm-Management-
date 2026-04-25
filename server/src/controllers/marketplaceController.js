@@ -51,6 +51,7 @@ exports.createListing = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title and valid price are required.' });
     }
 
+    const { normalizeFilePath } = require('../utils/fileNormalization');
     const doc = await MarketplaceListing.create({
       title: String(title).trim(),
       description: description || '',
@@ -62,7 +63,7 @@ exports.createListing = async (req, res) => {
       stock: parseInt(stock, 10) || 1,
       deliveryTime: deliveryTime || '10 minutes',
       image: req.file
-        ? { path: req.file.path, originalName: req.file.originalname, mimeType: req.file.mimetype }
+        ? { path: normalizeFilePath(req.file.path), originalName: req.file.originalname, mimeType: req.file.mimetype }
         : undefined,
       seller: req.user._id,
       status: 'Active',

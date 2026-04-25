@@ -1,5 +1,6 @@
 const Event = require('../models/Event');
 const Student = require('../models/Student');
+const { normalizeFilePath } = require('../utils/fileNormalization');
 
 exports.getEvents = async (req, res) => {
   try {
@@ -35,7 +36,7 @@ exports.createEvent = async (req, res) => {
     // Handle image upload
     if (req.file) {
       payload.image = {
-        path: req.file.path,
+        path: normalizeFilePath(req.file.path),
         originalName: req.file.originalname,
         mimeType: req.file.mimetype
       };
@@ -65,7 +66,7 @@ exports.updateEvent = async (req, res) => {
     
     if (req.file) {
       payload.image = {
-        path: req.file.path,
+        path: normalizeFilePath(req.file.path),
         originalName: req.file.originalname,
         mimeType: req.file.mimetype
       };
