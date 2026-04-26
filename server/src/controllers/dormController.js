@@ -368,11 +368,30 @@ const submitApplication = async (req, res) => {
     let foundRoom = null;
     let foundCampus = null;
 
-    if (isAddis) {
-      // Addis residents must wait 5 minutes
+    if (isAddis && isSelfSponsored) {
+      // Requested flow: Addis self-sponsored students are checked immediately.
+      // If a bed exists, move to online payment right away; after payment they get assigned.
+      const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
+      if (room) {
+        foundRoom = room;
+        foundCampus = campus;
+        status = 'PaymentPending';
+        paymentStatus = 'Pending';
+        try {
+          paymentInfo = await initializeChapaPayment(student, 1500);
+        } catch (e) {
+          console.error('Chapa init failed:', e.message);
+        }
+      } else {
+        status = 'Pending';
+        paymentStatus = 'Pending';
+      }
+      scheduledReleaseAt = null;
+    } else if (isAddis) {
+      // Addis government-sponsored residents keep 5-minute wait policy.
       status = 'Waiting';
       scheduledReleaseAt = new Date(Date.now() + addisWaitMs);
-      paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
+      paymentStatus = 'NotRequired';
     } else {
       // Outside Addis residents get immediate room check
       const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
