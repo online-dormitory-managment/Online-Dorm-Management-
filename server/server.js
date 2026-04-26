@@ -133,13 +133,8 @@ async function connectDB() {
       dbName: MONGODB_DB_NAME,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then(async (mongooseInstance) => {
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
       console.log('✅ MongoDB newly connected');
-      // Run Room Audit on startup to fix capacity/gender issues
-      try {
-        const { auditAndFixRooms } = require('./auditRooms');
-        auditAndFixRooms().catch(e => console.error('❌ Audit error:', e.message));
-      } catch (e) {}
       return mongooseInstance;
     });
   }
