@@ -79,7 +79,8 @@ if (process.env.VERCEL) {
 }
 
 // Database Image Serving Fallback (Permanent Storage Fix for Vercel)
-app.get('/uploads/*', async (req, res, next) => {
+// Express 5 path matching rejects '/uploads/*', so use a regex route.
+app.get(/^\/uploads\/.*/, async (req, res, next) => {
   try {
     // Extract filename from the end of the path (e.g. /uploads/events/abc/123.jpg -> 123.jpg)
     const filename = path.basename(req.path);
