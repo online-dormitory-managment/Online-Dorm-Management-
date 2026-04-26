@@ -12,6 +12,16 @@ async function persistFileToDb(filePath) {
 
     const filename = path.basename(filePath);
     const data = fs.readFileSync(filePath);
+    const ext = path.extname(filename).toLowerCase();
+    const mimeMap = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.pdf': 'application/pdf'
+    };
+    const mimeType = mimeMap[ext] || 'image/jpeg';
     
     // Check if it already exists to avoid duplicates
     const existing = await Upload.findOne({ filename });
@@ -20,6 +30,7 @@ async function persistFileToDb(filePath) {
     const upload = await Upload.create({
       filename,
       originalName: filename,
+      mimeType,
       data
     });
     console.log(`💾 Persisted image to DB: ${filename}`);

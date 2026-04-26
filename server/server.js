@@ -79,9 +79,12 @@ if (process.env.VERCEL) {
 }
 
 // Database Image Serving Fallback (Permanent Storage Fix for Vercel)
-app.get('/uploads/:filename', async (req, res, next) => {
+app.get('/uploads/*', async (req, res, next) => {
   try {
-    const filename = req.params.filename;
+    // Extract filename from the end of the path (e.g. /uploads/events/abc/123.jpg -> 123.jpg)
+    const filename = path.basename(req.path);
+    if (!filename || filename === 'uploads') return next();
+
     // Fallback: Fetch from Database
     const Upload = require('./src/models/Upload');
     const upload = await Upload.findOne({ filename });
