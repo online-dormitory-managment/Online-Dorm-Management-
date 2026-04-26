@@ -239,7 +239,7 @@ console.log('=== ROUTES LOADED ===\n');
 // Background Worker for Scheduled Notifications & Automated AA Assignment
 const Notification = require('./models/Notification');
 const DormApplication = require('./models/DormApplication');
-const { assignStudentToRoom, getOcrScheduler } = require('./controllers/dormController');
+const { assignStudentToRoom, findRoomForStudent, getOcrScheduler } = require('./controllers/dormController');
 setInterval(async () => {
   try {
     const now = new Date();
@@ -271,17 +271,33 @@ setInterval(async () => {
             student.sponsorship === 'Self-Sponsored' &&
             !['Paid', 'Verified'].includes(String(app.paymentStatus || ''))
           ) {
-            // Wait period is over, but they haven't paid. Move to PaymentPending.
-            app.status = 'PaymentPending';
-            console.log(`⏱️ Wait period over for ${student.fullName} (Self-Sponsored). Moving to PaymentPending.`);
-            if (student?.user) {
-              await Notification.create({
-                user: student.user,
-                type: 'DormApplication',
-                title: 'Payment required',
-                message: 'Your 5-minute wait is over. Please complete the 1,500 ETB payment to secure your dorm assignment.',
-                data: { applicationId: String(app._id) },
-              });
+            // Self-sponsored Addis flow: ask for payment only when a bed is actually available.
+            const { room } = await findRoomForStudent(student, student.isSpecialNeed);
+            if (room) {
+              app.status = 'PaymentPending';
+              console.log(`⏱️ Wait period over for ${student.fullName}. Bed found, moving to PaymentPending.`);
+              if (student?.user) {
+                await Notification.create({
+                  user: student.user,
+                  type: 'DormApplication',
+                  title: 'Payment required',
+                  message: 'A bed is available for you. Please complete the 1,500 ETB payment to secure your dorm assignment.',
+                  data: { applicationId: String(app._id) },
+                });
+              }
+            } else {
+              app.status = 'Pending';
+              app.scheduledReleaseAt = null;
+              console.log(`⏳ Wait period over for ${student.fullName}, but no bed is available yet. Keeping Pending.`);
+              if (student?.user) {
+                await Notification.create({
+                  user: student.user,
+                  type: 'DormApplication',
+                  title: 'No beds available',
+                  message: 'Your waiting period is complete, but there is currently no bed available. We will notify you when one becomes available.',
+                  data: { applicationId: String(app._id) },
+                });
+              }
             }
           } else {
             // Government or already paid Self-Sponsored -> Try assignment
