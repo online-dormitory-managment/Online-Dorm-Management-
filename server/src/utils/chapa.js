@@ -9,10 +9,10 @@ function buildPlacementReturnUrl() {
   
   // If we're on localhost and FRONTEND_URL isn't set, default to common vite port
   if (!process.env.FRONTEND_URL && !process.env.VERCEL) {
-    return `http://localhost:5173/placement-request?payment=success&step=submit`;
+    return `http://localhost:5173/placement-request?payment=success`;
   }
 
-  return `${frontend}/placement-request?payment=success&step=submit`;
+  return `${frontend}/placement-request?payment=success`;
 }
 
 function buildCallbackUrl() {

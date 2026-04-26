@@ -152,7 +152,6 @@ export default function PlacementRequestSimple() {
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
   const [draftLoaded, setDraftLoaded] = useState(false);
   const lastVerifiedTxRef = useRef(null);
-  const submitStepPromptedRef = useRef(false);
 
   const isAddis = false;
   const isLikelyFarAddis = false;
@@ -344,15 +343,6 @@ export default function PlacementRequestSimple() {
             // Ensure we stay on the dorm placement page after payment.
             if (window.location.pathname !== '/placement-request') {
               window.location.href = '/placement-request';
-            }
-            // If payment happened before application submission, guide user back to submit request.
-            if (!updatedApp && !submitStepPromptedRef.current) {
-              submitStepPromptedRef.current = true;
-              toast.success('Payment verified. Please submit your dorm request now.', { duration: 5000 });
-              setTimeout(() => {
-                const target = document.getElementById('submit-request-section');
-                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 200);
             }
           } else {
             toast.error(verifyRes.message || 'Verification failed', { id: verifToast });
@@ -1148,7 +1138,7 @@ export default function PlacementRequestSimple() {
             )}
 
             {/* Form Actions */}
-            <div id="submit-request-section" className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-4">
               <button
                 type="button"
                 onClick={() => navigate('/student-portal')}
