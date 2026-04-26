@@ -212,6 +212,34 @@ async function assignStudentToRoom(application, student) {
   if (!room) {
     application.status = 'Pending';
     application.originVerificationNote = `${application.originVerificationNote || ''} No vacant room found even after campus overflow search.`.trim();
+
+    // Notify applicant when no bed is available (including capacity=0 rooms).
+    try {
+      const studentUser = student.user?._id || student.user;
+      if (studentUser) {
+        const existing = await Notification.findOne({
+          user: studentUser,
+          type: 'DormApplication',
+          title: 'No beds available',
+          'data.applicationId': String(application._id),
+          read: false,
+        });
+
+        if (!existing) {
+          await Notification.create({
+            user: studentUser,
+            type: 'DormApplication',
+            title: 'No beds available',
+            message: 'All room beds are currently full (or room capacity is 0). Your application is pending and you will be notified once a bed becomes available.',
+            data: { applicationId: String(application._id) },
+            isSent: true,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to send no-bed notification:', e.message);
+    }
+
     return false;
   }
 
