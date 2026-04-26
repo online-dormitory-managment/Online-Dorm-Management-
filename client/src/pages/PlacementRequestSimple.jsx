@@ -256,6 +256,7 @@ export default function PlacementRequestSimple() {
   // Effect for Timer Countdown (Addis Wait)
   useEffect(() => {
     if (existingApp?.status === 'Waiting' && existingApp?.scheduledReleaseAt) {
+      let refreshInFlight = false;
       const interval = setInterval(() => {
         const target = new Date(existingApp.scheduledReleaseAt).getTime();
         const now = new Date().getTime();
@@ -263,13 +264,32 @@ export default function PlacementRequestSimple() {
 
         if (diff <= 0) {
           setTimeLeft(null);
-          clearInterval(interval);
-          // Try to refresh once to see if assigned
-          dormApi.getMyApplication().then(setExistingApp);
+          // Keep polling briefly after timer end so PaymentPending/Assigned state appears reliably.
+          if (!refreshInFlight) {
+            refreshInFlight = true;
+            dormApi
+              .getMyApplication()
+              .then(setExistingApp)
+              .catch(() => {})
+              .finally(() => {
+                refreshInFlight = false;
+              });
+          }
         } else {
           const mins = Math.floor(diff / 60000);
           const secs = Math.floor((diff % 60000) / 1000);
           setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+          // While waiting, periodically refresh server state in case status changes.
+          if (secs % 10 === 0 && !refreshInFlight) {
+            refreshInFlight = true;
+            dormApi
+              .getMyApplication()
+              .then(setExistingApp)
+              .catch(() => {})
+              .finally(() => {
+                refreshInFlight = false;
+              });
+          }
         }
       }, 1000);
       return () => clearInterval(interval);
