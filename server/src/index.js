@@ -240,6 +240,12 @@ console.log('=== ROUTES LOADED ===\n');
 const Notification = require('./models/Notification');
 const DormApplication = require('./models/DormApplication');
 const { assignStudentToRoom, findRoomForStudent, getOcrScheduler } = require('./controllers/dormController');
+
+function isSelfSponsoredStudent(studentLike) {
+  const raw = String(studentLike?.sponsorship || studentLike?.studentType || '').trim().toLowerCase();
+  return raw.includes('self');
+}
+
 setInterval(async () => {
   try {
     const now = new Date();
@@ -268,7 +274,7 @@ setInterval(async () => {
         try {
           const student = app.student;
           if (
-            student.sponsorship === 'Self-Sponsored' &&
+            isSelfSponsoredStudent(student) &&
             !['Paid', 'Verified'].includes(String(app.paymentStatus || ''))
           ) {
             // Self-sponsored Addis flow: ask for payment only when a bed is actually available.

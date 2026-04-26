@@ -7,6 +7,11 @@ const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
 const { assignStudentToRoom } = require('./dormController');
 
+function isSelfSponsoredStudent(studentLike) {
+  const raw = String(studentLike?.sponsorship || studentLike?.studentType || '').trim().toLowerCase();
+  return raw.includes('self');
+}
+
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
 const CHAPA_CALLBACK_URL = (process.env.CHAPA_CALLBACK_URL || '').trim();
@@ -218,7 +223,7 @@ const finalizeVerification = async (chapaData, req, res) => {
       if (application) {
         const now = new Date();
         const isAddis = String(application.city || '').trim().toLowerCase() === 'addis ababa';
-        const isSelfSponsored = application.student?.sponsorship === 'Self-Sponsored';
+        const isSelfSponsored = isSelfSponsoredStudent(application.student);
 
         application.paymentStatus = 'Paid';
         application.paymentVerifiedAt = now;

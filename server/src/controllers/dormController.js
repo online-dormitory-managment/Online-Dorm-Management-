@@ -132,6 +132,11 @@ function normalizeDeclaredCity(input) {
   return raw;
 }
 
+function isSelfSponsoredStudent(studentLike) {
+  const raw = String(studentLike?.sponsorship || studentLike?.studentType || '').trim().toLowerCase();
+  return raw.includes('self');
+}
+
 function citySuggestionFromBackOcr(backText) {
   if (!backText) return '';
   if (backOcrImpliesAddisArea(backText)) return 'Addis Ababa';
@@ -359,7 +364,7 @@ const submitApplication = async (req, res) => {
     const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
     const isFar = impliesFarAddis(finalCity, backText);
     const addisWaitMs = 5 * 60 * 1000;
-    const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
+    const isSelfSponsored = isSelfSponsoredStudent(student);
     
     let status = 'Pending';
     let scheduledReleaseAt = null;
@@ -497,7 +502,7 @@ const getMyApplication = async (req, res) => {
         console.log(`⏰ Wait expired for ${student.fullName} — checking room availability...`);
         try {
           const { room, isOverflow, campus } = await findRoomForStudent(student, student.isSpecialNeed);
-          const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
+          const isSelfSponsored = isSelfSponsoredStudent(student);
 
           if (room) {
              if (isSelfSponsored) {
