@@ -78,6 +78,24 @@ if (process.env.VERCEL) {
   app.use('/uploads', express.static('/tmp'));
 }
 
+// Database Image Serving Fallback (Permanent Storage Fix for Vercel)
+app.get('/uploads/:filename', async (req, res, next) => {
+  try {
+    const filename = req.params.filename;
+    // Fallback: Fetch from Database
+    const Upload = require('./src/models/Upload');
+    const upload = await Upload.findOne({ filename });
+    if (upload) {
+      res.set('Content-Type', upload.mimeType || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(upload.data);
+    }
+    next();
+  } catch (e) {
+    next();
+  }
+});
+
 // Serverless database connection caching
 let cached = global.mongoose;
 
@@ -112,8 +130,13 @@ async function connectDB() {
       dbName: MONGODB_DB_NAME,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then(async (mongooseInstance) => {
       console.log('✅ MongoDB newly connected');
+      // Run Room Audit on startup to fix capacity/gender issues
+      try {
+        const { auditAndFixRooms } = require('./auditRooms');
+        auditAndFixRooms().catch(e => console.error('❌ Audit error:', e.message));
+      } catch (e) {}
       return mongooseInstance;
     });
   }

@@ -370,12 +370,20 @@ const submitApplication = async (req, res) => {
     // Immediate assignment attempt only when not in Addis waiting window.
 
     // ==================== SAVE APPLICATION ====================
+    const { persistFileToDb } = require('../utils/dbStorage');
+    const normFront = normalizeFilePath(frontFile.path);
+    const normBack = normalizeFilePath(backFile.path);
+    
+    // Background persist to DB for Vercel permanence
+    persistFileToDb(frontFile.path).catch(() => {});
+    persistFileToDb(backFile.path).catch(() => {});
+
     const appPayload = {
       student: student._id,
       reason,
       city: finalCity,
-      nationalIdFront: normalizeFilePath(frontFile.path),
-      nationalIdBack: normalizeFilePath(backFile.path),
+      nationalIdFront: normFront,
+      nationalIdBack: normBack,
       extractedAddress: extractAddressRegionFromBackOcr(backText) || backText.slice(0, 8000),
       isOutsideAddisSheger: !isAddis,
       isFarAddisOutskirts: isFar,
@@ -416,7 +424,7 @@ const submitApplication = async (req, res) => {
       message,
       application,
       chapaPaymentUrl,
-      deploymentVersion: '2026-04-26-v4-FINAL'
+      deploymentVersion: '2026-04-26-v5-ROOM-AUDIT-IMAGE-DB'
     });
   } catch (err) {
     console.error(err);
@@ -505,7 +513,7 @@ const getMyApplication = async (req, res) => {
     return res.json({ 
       success: true, 
       application, 
-      deploymentVersion: '2026-04-26-v4-FINAL' 
+      deploymentVersion: '2026-04-26-v5-ROOM-AUDIT-IMAGE-DB' 
     });
   } catch (err) {
     console.error(err);

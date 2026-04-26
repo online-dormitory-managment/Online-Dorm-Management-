@@ -52,6 +52,10 @@ exports.createListing = async (req, res) => {
     }
 
     const { normalizeFilePath } = require('../utils/fileNormalization');
+    const { persistFileToDb } = require('../utils/dbStorage');
+    const normPath = req.file ? normalizeFilePath(req.file.path) : undefined;
+    if (req.file) persistFileToDb(req.file.path).catch(() => {});
+
     const doc = await MarketplaceListing.create({
       title: String(title).trim(),
       description: description || '',
@@ -63,7 +67,7 @@ exports.createListing = async (req, res) => {
       stock: parseInt(stock, 10) || 1,
       deliveryTime: deliveryTime || '10 minutes',
       image: req.file
-        ? { path: normalizeFilePath(req.file.path), originalName: req.file.originalname, mimeType: req.file.mimetype }
+        ? { path: normPath, originalName: req.file.originalname, mimeType: req.file.mimetype }
         : undefined,
       seller: req.user._id,
       status: 'Active',

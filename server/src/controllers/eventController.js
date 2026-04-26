@@ -35,6 +35,8 @@ exports.createEvent = async (req, res) => {
     
     // Handle image upload
     if (req.file) {
+      const { persistFileToDb } = require('../utils/dbStorage');
+      persistFileToDb(req.file.path).catch(() => {});
       payload.image = {
         path: normalizeFilePath(req.file.path),
         originalName: req.file.originalname,
@@ -65,6 +67,8 @@ exports.updateEvent = async (req, res) => {
     if (payload.date) payload.date = new Date(payload.date);
     
     if (req.file) {
+      const { persistFileToDb } = require('../utils/dbStorage');
+      persistFileToDb(req.file.path).catch(() => {});
       payload.image = {
         path: normalizeFilePath(req.file.path),
         originalName: req.file.originalname,

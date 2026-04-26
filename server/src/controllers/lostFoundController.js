@@ -32,9 +32,10 @@ exports.createItem = async (req, res) => {
       return res.status(400).json({ success: false, message: 'type must be "lost" or "found".' });
     }
 
-    console.log('📦 Creating LostFoundItem with payload:', { type: t, itemName: name, category: cat, reportedBy: req.user._id });
-    
     const { normalizeFilePath } = require('../utils/fileNormalization');
+    const { persistFileToDb } = require('../utils/dbStorage');
+    if (req.file) persistFileToDb(req.file.path).catch(() => {});
+
     const item = await LostFoundItem.create({
       type: t,
       itemName: name,
