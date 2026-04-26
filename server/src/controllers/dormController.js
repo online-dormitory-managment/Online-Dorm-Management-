@@ -53,6 +53,16 @@ const { normalizeFilePath } = require('../utils/fileNormalization');
 function roomGenderFilter(gender) {
   return { $in: [gender, 'Mixed'] };
 }
+
+function campusMatcher(campus) {
+  const normalized = String(campus || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return /.*/i;
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return new RegExp(`^${escaped}$`, 'i');
+}
 const { getCampusForDepartment } = require('../utils/campus');
 const {
   normalizeAscii,
@@ -179,9 +189,9 @@ function strictCityMatchFromBackOcr(city, backText) {
 async function findRoomForStudent(student, isSpecialNeed = false) {
   const campus = getCampusForDepartment(student.department);
   let query = {
-    isFull: false,
     gender: roomGenderFilter(student.gender),
-    campus,
+    campus: { $regex: campusMatcher(campus) },
+    capacity: { $gt: 0 },
     $expr: { $lt: ["$currentOccupants", "$capacity"] }
   };
 
@@ -191,25 +201,10 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
   }
 
   let room = await Room.findOne(query).populate('building');
-  if (room) return { room, isOverflow: false, campus: query.campus };
+  if (room) return { room, isOverflow: false, campus };
 
-  // If specific campus failed, try global fallback (ANY campus with same gender)
-  const overflowQuery = {
-    isFull: false,
-    gender: roomGenderFilter(student.gender),
-    $expr: { $lt: ["$currentOccupants", "$capacity"] }
-  };
-  if (isSpecialNeed) {
-    const firstFloors = await Floor.find({ floorNumber: 1 });
-    overflowQuery.floor = { $in: firstFloors.map((f) => f._id) };
-  }
-  
-  room = await Room.findOne(overflowQuery).populate('building');
-  if (room) {
-    return { room, isOverflow: true, campus: room.campus };
-  }
-
-  return { room: null, isOverflow: false };
+  // Campus-based policy: do not auto-fallback to other campuses here.
+  return { room: null, isOverflow: false, campus };
 }
 
 async function assignStudentToRoom(application, student) {
