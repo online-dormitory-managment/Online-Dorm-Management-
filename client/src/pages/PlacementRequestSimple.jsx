@@ -929,7 +929,7 @@ export default function PlacementRequestSimple() {
               </div>
             )}
             
-            {(existingApp?.status === 'PaymentPending' || isPaid) && (
+            {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || isPaid) && (
               <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
@@ -994,6 +994,16 @@ export default function PlacementRequestSimple() {
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
                       <FaLock className="w-2.5 h-2.5" /> ID: {existingApp?.chapaTxRef || 'CHAPA-SUCCESS'}
+                    </div>
+                  </div>
+                ) : existingApp?.status === 'Waiting' ? (
+                  <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-4">
+                    <FaSpinner className="w-10 h-10 text-blue-500 animate-spin" />
+                    <div className="text-center">
+                      <h4 className="font-bold text-blue-900">Checking Room Availability...</h4>
+                      <p className="text-xs text-blue-700">
+                        {timeLeft ? `Your 5-minute wait is in progress (${timeLeft} remaining).` : 'Finalizing checks now. The Pay Online button will appear automatically once a room is found.'}
+                      </p>
                     </div>
                   </div>
                 ) : paymentStatus === 'verifying' ? (
