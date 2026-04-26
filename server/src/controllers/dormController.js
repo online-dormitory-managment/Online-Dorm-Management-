@@ -337,6 +337,9 @@ const submitApplication = async (req, res) => {
     let scheduledReleaseAt = null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
 
+    let foundRoom = null;
+    let foundCampus = null;
+
     if (isAddis) {
       // Addis residents must wait 5 minutes
       status = 'Waiting';
@@ -344,12 +347,13 @@ const submitApplication = async (req, res) => {
       paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     } else {
       // Outside Addis residents get immediate room check
-      const room = await findRoomForStudent(student, student.isSpecialNeed);
+      const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
       if (room) {
+        foundRoom = room;
+        foundCampus = campus;
         if (isSelfSponsored) {
           status = 'PaymentPending';
           paymentStatus = 'Pending';
-          // Initialize Chapa now for non-Addis
           try {
             paymentInfo = await initializeChapaPayment(student, 1500);
           } catch (e) {
@@ -360,7 +364,7 @@ const submitApplication = async (req, res) => {
           paymentStatus = 'NotRequired';
         }
       } else {
-        status = 'Pending'; // No room currently available
+        status = 'Pending'; 
       }
     }
 
@@ -408,15 +412,26 @@ const submitApplication = async (req, res) => {
       await assignStudentToRoom(application, student);
     }
 
+    if (application.status === 'Assigned' && foundRoom) {
+      // For immediate assignment (non-Addis govt student)
+      application.assignedRoom = foundRoom._id;
+      foundRoom.currentOccupants = (foundRoom.currentOccupants || 0) + 1;
+      foundRoom.isFull = foundRoom.currentOccupants >= (foundRoom.capacity || 4);
+      if (!foundRoom.assignedStudents) foundRoom.assignedStudents = [];
+      foundRoom.assignedStudents.push(student._id);
+      await foundRoom.save();
+    }
+
+    await application.save();
     await application.populate('student assignedRoom');
 
     let message = 'Application submitted successfully.';
     if (application.status === 'Waiting') {
       message = 'City of Addis Ababa detected. Please wait 5 minutes while we verify on-campus room availability.';
     } else if (application.status === 'PaymentPending') {
-      message = 'Room found! Please complete your payment to finalize assignment.';
+      message = `Room found (${foundRoom?.building?.name || ''} - ${foundRoom?.roomNumber || ''}) on ${foundCampus || 'assigned'} campus. Please complete your payment to finalize assignment.`;
     } else if (application.status === 'Assigned') {
-      message = 'Success! Your room has been assigned.';
+      message = `Success! Room ${application.assignedRoom?.roomNumber || ''} has been assigned.`;
     }
 
     return res.json({
@@ -424,7 +439,7 @@ const submitApplication = async (req, res) => {
       message,
       application,
       chapaPaymentUrl,
-      deploymentVersion: '2026-04-26-v5-ROOM-AUDIT-IMAGE-DB'
+      deploymentVersion: '2026-04-26-v6-OBJECT-FIX'
     });
   } catch (err) {
     console.error(err);
@@ -453,7 +468,7 @@ const getMyApplication = async (req, res) => {
       if (Date.now() >= releaseTime) {
         console.log(`⏰ Wait expired for ${student.fullName} — checking room availability...`);
         try {
-          const room = await findRoomForStudent(student, student.isSpecialNeed);
+          const { room, isOverflow, campus } = await findRoomForStudent(student, student.isSpecialNeed);
           const isSelfSponsored = student.sponsorship === 'Self-Sponsored';
 
           if (room) {
@@ -469,13 +484,13 @@ const getMyApplication = async (req, res) => {
                    console.error('Chapa init error in polling:', pe.message);
                 }
                 
-                await Notification.create({
-                  user: req.user._id,
-                  type: 'DormApplication',
-                  title: '🏠 Room Found - Payment Required',
-                  message: `A room has been found on your campus. Please complete your payment to finalize assignment.`,
-                  isSent: true
-                });
+                 await Notification.create({
+                   user: req.user._id,
+                   type: 'DormApplication',
+                   title: '🏠 Room Found - Payment Required',
+                   message: `A room has been found (${room.building?.name || ''} - ${room.roomNumber}) on ${campus || 'assigned'} campus. Please complete your payment to finalize.`,
+                   isSent: true
+                 });
              } else {
                 // ATTEMPT ASSIGNMENT (for free students)
                 const success = await assignStudentToRoom(application, student);
@@ -513,7 +528,7 @@ const getMyApplication = async (req, res) => {
     return res.json({ 
       success: true, 
       application, 
-      deploymentVersion: '2026-04-26-v5-ROOM-AUDIT-IMAGE-DB' 
+      deploymentVersion: '2026-04-26-v6-OBJECT-FIX' 
     });
   } catch (err) {
     console.error(err);
