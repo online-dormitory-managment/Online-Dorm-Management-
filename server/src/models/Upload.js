@@ -7,4 +7,4 @@ const uploadSchema = new mongoose.Schema({
   data: { type: Buffer, required: true }, // Binary data
 }, { timestamps: true });
 
-module.exports = mongoose.model('Upload', uploadSchema);
+module.exports = mongoose.models.Upload || mongoose.model('Upload', uploadSchema);

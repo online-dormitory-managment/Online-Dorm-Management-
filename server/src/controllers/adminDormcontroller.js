@@ -434,6 +434,15 @@ const reviewApplication = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+const runRoomAudit = async (req, res) => {
+  try {
+    const { auditAndFixRooms } = require('../../auditRooms');
+    await auditAndFixRooms();
+    res.json({ success: true, message: 'Room audit completed' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 module.exports = {
   getAllBuildings,
