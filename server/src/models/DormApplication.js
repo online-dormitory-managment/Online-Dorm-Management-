@@ -95,4 +95,4 @@ const dormApplicationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('DormApplication', dormApplicationSchema);
+module.exports = mongoose.models.DormApplication || mongoose.model('DormApplication', dormApplicationSchema);
