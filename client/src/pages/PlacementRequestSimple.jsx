@@ -766,6 +766,7 @@ export default function PlacementRequestSimple() {
             </div>
           )}
 
+          {!existingApp && (
           <form onSubmit={submit} className="space-y-6">
             {submitError && (
               <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4">
@@ -1168,6 +1169,7 @@ export default function PlacementRequestSimple() {
               )}
             </div>
           </form>
+          )}
         </div>
 
         {/* Right Side - Image with Blue Light Overlay */}

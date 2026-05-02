@@ -24,6 +24,8 @@ const {
   deleteCrossCampusPolicy,
   getCampusDepartmentOptions,
   getAdminStudentList,
+  getDormApplicationConfig,
+  updateDormApplicationConfigAndNotifyAll,
 } = require('../controllers/adminDormcontroller');
 
 const router = express.Router();
@@ -63,6 +65,10 @@ router.get('/campus-department-options', getCampusDepartmentOptions);
 
 // Admin student list (same style as proctor list data)
 router.get('/students-list', getAdminStudentList);
+
+// SuperAdmin global open/close + notify all
+router.get('/global-application-config', getDormApplicationConfig);
+router.put('/global-application-config', updateDormApplicationConfigAndNotifyAll);
 
 // Application review - with campus permission check
 router.put(

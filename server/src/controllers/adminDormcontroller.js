@@ -9,6 +9,7 @@ const Log = require('../models/Log');
 const Proctor = require('../models/Proctor');
 const DormApplicationWindow = require('../models/DormApplicationWindow');
 const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
+const DormApplicationConfig = require('../models/DormApplicationConfig');
 const { createNotification } = require('./notificationController');
 const { getCampusForDepartment } = require('../utils/campus');
 
@@ -606,6 +607,73 @@ const getAdminStudentList = async (req, res) => {
   }
 };
 
+const getDormApplicationConfig = async (req, res) => {
+  try {
+    let config = await DormApplicationConfig.findOne({ key: 'global' });
+    if (!config) {
+      config = await DormApplicationConfig.create({ key: 'global', isOpen: false });
+    }
+    res.json({ success: true, data: config });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const updateDormApplicationConfigAndNotifyAll = async (req, res) => {
+  try {
+    if (req.user?.role !== 'SuperAdmin') {
+      return res.status(403).json({ success: false, message: 'Only SuperAdmin can update global dorm opening.' });
+    }
+
+    const { announcement = '', isOpen = false } = req.body || {};
+    let config = await DormApplicationConfig.findOne({ key: 'global' });
+    if (!config) {
+      config = await DormApplicationConfig.create({ key: 'global' });
+    }
+
+    config.isOpen = Boolean(isOpen);
+    config.announcement = String(announcement || '').trim();
+    config.openedAt = config.isOpen ? new Date() : null;
+    config.updatedBy = req.user?._id || null;
+    await config.save();
+
+    const targetRoles = ['Student', 'CampusAdmin', 'SuperAdmin', 'Proctor'];
+    const users = await User.find({ role: { $in: targetRoles } }).select('_id');
+    const userIds = users.map((u) => u._id);
+
+    const title = config.isOpen ? 'Dorm application is now OPEN' : 'Dorm application is now CLOSED';
+    const message =
+      config.announcement ||
+      (config.isOpen
+        ? 'Dorm applications are now open. Students can apply now.'
+        : 'Dorm applications are currently closed.');
+
+    if (userIds.length) {
+      await Notification.insertMany(
+        userIds.map((userId) => ({
+          user: userId,
+          type: 'DormApplication',
+          title,
+          message,
+          data: {
+            dormApplicationOpen: config.isOpen,
+            openedAt: config.openedAt,
+          },
+          isSent: true,
+        }))
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Updated global dorm application state and notified ${userIds.length} users.`,
+      data: config,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getAllBuildings,
   getBuildingById,
@@ -628,4 +696,6 @@ module.exports = {
   deleteCrossCampusPolicy,
   getCampusDepartmentOptions,
   getAdminStudentList,
+  getDormApplicationConfig,
+  updateDormApplicationConfigAndNotifyAll,
 };

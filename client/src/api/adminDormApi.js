@@ -79,6 +79,14 @@ const adminDormApi = {
     const res = await api.get('/admin-dorm/students-list');
     return res.data;
   },
+  getGlobalApplicationConfig: async () => {
+    const res = await api.get('/admin-dorm/global-application-config');
+    return res.data;
+  },
+  updateGlobalApplicationConfig: async (data) => {
+    const res = await api.put('/admin-dorm/global-application-config', data);
+    return res.data;
+  },
 };
 
 export default adminDormApi;

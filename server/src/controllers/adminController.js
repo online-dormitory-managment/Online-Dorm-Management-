@@ -6,6 +6,7 @@ const Room = require('../models/Room');
 const Log = require('../models/Log');
 const Student = require('../models/Student');
 const { createNotification } = require('./notificationController');
+const { getCampusForDepartment } = require('../utils/campus');
 
 async function assignRoomForStudent(studentDoc) {
   try {
@@ -34,7 +35,7 @@ async function assignRoomForStudent(studentDoc) {
 // Get all applications
 const getAllApplications = async (req, res) => {
   try {
-    const applications = await DormApplication.find({})
+    let applications = await DormApplication.find({})
       .populate({
         path: 'student',
         select: 'fullName studentID department year gender sponsorship',
@@ -46,6 +47,13 @@ const getAllApplications = async (req, res) => {
       .populate('assignedRoom')
       .populate('reviewedBy', 'name userID')
       .sort({ createdAt: -1 });
+
+    if (req.user?.role === 'CampusAdmin' && req.user?.campus) {
+      applications = applications.filter((app) => {
+        const dept = app?.student?.department || '';
+        return getCampusForDepartment(dept) === req.user.campus;
+      });
+    }
 
     res.json(applications);
   } catch (err) {

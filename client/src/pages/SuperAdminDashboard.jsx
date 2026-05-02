@@ -26,6 +26,8 @@ import operationalReportApi from '../api/operationalReportApi';
 import adminApi from '../api/adminApi';
 import authApi from '../api/authApi';
 import ProfilePictureUpload from '../components/common/ProfilePictureUpload';
+import adminDormApi from '../api/adminDormApi';
+import toast from 'react-hot-toast';
 
 const quickActions = [
   { title: 'Admin Management', icon: FaUsersCog, link: '/super-admin/proctors', color: 'from-blue-500 to-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -41,6 +43,9 @@ export default function SuperAdminDashboard() {
   const user = authApi.getCurrentUser();
 
   const [recentReports, setRecentReports] = useState([]);
+  const [notifyText, setNotifyText] = useState('');
+  const [isDormOpen, setIsDormOpen] = useState(false);
+  const [updatingOpenState, setUpdatingOpenState] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -54,6 +59,9 @@ export default function SuperAdminDashboard() {
         if (!alive) return;
         setOverview(overviewData);
         setRecentReports((reportsData || []).slice(0, 5));
+        const cfg = await adminDormApi.getGlobalApplicationConfig();
+        setIsDormOpen(Boolean(cfg?.data?.isOpen));
+        setNotifyText(cfg?.data?.announcement || '');
       } finally {
         if (alive) setLoading(false);
       }
@@ -67,6 +75,21 @@ export default function SuperAdminDashboard() {
     { label: 'Database Health', value: 'Optimal', change: 'All Good', trend: 'neutral', icon: FaDatabase, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
     { label: 'Active Sessions', value: '1.2k', change: '+124', trend: 'up', icon: FaShieldAlt, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' }
   ];
+
+  const handleNotifyAllAndToggle = async () => {
+    try {
+      setUpdatingOpenState(true);
+      const res = await adminDormApi.updateGlobalApplicationConfig({
+        announcement: notifyText,
+        isOpen: isDormOpen,
+      });
+      toast.success(res?.message || 'Updated and notified all users');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to notify users');
+    } finally {
+      setUpdatingOpenState(false);
+    }
+  };
 
   if (loading) {
      return (
@@ -146,6 +169,38 @@ export default function SuperAdminDashboard() {
                  ))}
               </div>
            </div>
+        </div>
+
+        <div className="mb-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Dorm Application Global Notification</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+            Write a message for all students, admins, and proctors, then notify all users.
+          </p>
+          <textarea
+            value={notifyText}
+            onChange={(e) => setNotifyText(e.target.value)}
+            placeholder="Write your message..."
+            className="w-full min-h-[110px] rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 mb-4"
+          />
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={isDormOpen}
+                onChange={(e) => setIsDormOpen(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Open dorm application
+            </label>
+            <button
+              type="button"
+              onClick={handleNotifyAllAndToggle}
+              disabled={updatingOpenState}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
+            >
+              {updatingOpenState ? 'Sending...' : 'Notify All'}
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid - MATCHING Admin Dashboard */}

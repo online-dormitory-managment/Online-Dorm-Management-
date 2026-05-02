@@ -49,6 +49,7 @@ const Floor = require('../models/Floor');
 const Notification = require('../models/Notification');
 const DormApplicationWindow = require('../models/DormApplicationWindow');
 const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
+const DormApplicationConfig = require('../models/DormApplicationConfig');
 const ADDIS_WAIT_MS = 5 * 60 * 1000;
 const { normalizeFilePath } = require('../utils/fileNormalization');
 
@@ -87,21 +88,12 @@ async function getEffectiveWaitMsForCityCategory(cityCategory, campus) {
   if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
 
   const defaultMs = cityCategory === 'shager' ? 3 * 60 * 1000 : ADDIS_WAIT_MS;
-  const activeWindow = await DormApplicationWindow.findOne({
-    campus: { $regex: campusMatcher(campus) },
-    isOpen: true,
-  }).sort({ openedAt: -1 });
+  const config = await DormApplicationConfig.findOne({ key: 'global' });
+  if (!config?.isOpen || !config?.openedAt) return defaultMs;
 
-  if (!activeWindow || !activeWindow.openedAt) return defaultMs;
-
-  const overrideMin =
-    cityCategory === 'shager'
-      ? Number(activeWindow.shagerWaitMinutes || 1)
-      : Number(activeWindow.addisWaitMinutes || 2);
-
-  const elapsed = Date.now() - new Date(activeWindow.openedAt).getTime();
-  const remaining = Math.max(0, overrideMin * 60 * 1000 - elapsed);
-  return remaining;
+  const requiredMs = cityCategory === 'addis' ? 5 * 60 * 1000 : defaultMs;
+  const elapsed = Date.now() - new Date(config.openedAt).getTime();
+  return Math.max(0, requiredMs - elapsed);
 }
 const { getCampusForDepartment } = require('../utils/campus');
 const {
@@ -333,6 +325,14 @@ async function assignStudentToRoom(application, student) {
 
 const submitApplication = async (req, res) => {
   try {
+    const globalConfig = await DormApplicationConfig.findOne({ key: 'global' });
+    if (!globalConfig?.isOpen) {
+      return res.status(403).json({
+        success: false,
+        message: 'Dorm application is currently closed by administration.',
+      });
+    }
+
     const reason = String(req.body.reason || 'Dorm placement request').trim();
     // CITY INPUT REMOVED: Detection is now automated via OCR
 
