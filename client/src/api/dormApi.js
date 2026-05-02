@@ -67,6 +67,16 @@ export const dormApi = {
     }
   },
 
+  // Get global dorm application config
+  getConfig: async () => {
+    try {
+      const response = await api.get('/dorm/config');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Submit dorm application
   submitApplication: async (formData) => {
     try {

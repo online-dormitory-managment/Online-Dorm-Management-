@@ -141,9 +141,9 @@ export default function ManageStudents() {
       const matchesType = selectedType === 'All' || student.studentType === selectedType;
       const matchesStatus = statusFilter === 'All' || student.status === statusFilter;
       const matchesSearch =
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase());
+        (student.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesType && matchesStatus && matchesSearch;
     });
   }, [selectedType, statusFilter, students, searchTerm]);

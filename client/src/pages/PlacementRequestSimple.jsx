@@ -131,6 +131,8 @@ export default function PlacementRequestSimple() {
   const [existingApp, setExistingApp] = useState(null);
   const [submitError, setSubmitError] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
+  const [isDormOpen, setIsDormOpen] = useState(true);
+  const [globalAnnouncement, setGlobalAnnouncement] = useState('');
 
   const [fydaFront, setFydaFront] = useState(null);
   const [fydaBack, setFydaBack] = useState(null);
@@ -236,6 +238,16 @@ export default function PlacementRequestSimple() {
         }
         const app = await dormApi.getMyApplication();
         setExistingApp(app);
+
+        try {
+          const configRes = await dormApi.getConfig();
+          if (configRes && configRes.success) {
+            setIsDormOpen(configRes.data?.isOpen ?? true);
+            setGlobalAnnouncement(configRes.data?.announcement || '');
+          }
+        } catch (configErr) {
+          console.error('Failed to load global config', configErr);
+        }
 
         if (app?.paymentStatus === 'Verified' || app?.paymentStatus === 'Paid') {
           setIsPaid(true);
@@ -686,6 +698,12 @@ export default function PlacementRequestSimple() {
                   ? 'bg-emerald-50 border-emerald-300 shadow-lg shadow-emerald-100'
                   : 'bg-white border-gray-200'
             }`}>
+              {/* ALREADY APPLIED GENERIC HEADER */}
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-black text-slate-800">You have already applied.</h2>
+                <p className="text-sm text-slate-500">Track your application status below.</p>
+              </div>
+
               {/* WAITING STATUS — Prominent countdown popup */}
               {existingApp.status === 'Waiting' && (
                 <div className="text-center space-y-4">
@@ -766,7 +784,17 @@ export default function PlacementRequestSimple() {
             </div>
           )}
 
-          {!existingApp && (
+          {!existingApp && !isDormOpen && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center shadow-sm">
+              <FaInfoCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-rose-800 mb-2">Dorm Applications are Closed</h2>
+              <p className="text-rose-600 mb-4">
+                {globalAnnouncement || 'The administration has currently closed the dormitory application window. You will be notified when it reopens.'}
+              </p>
+            </div>
+          )}
+
+          {!existingApp && isDormOpen && (
           <form onSubmit={submit} className="space-y-6">
             {submitError && (
               <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4">

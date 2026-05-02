@@ -766,6 +766,18 @@ const resetMyApplication = async (req, res) => {
   }
 };
 
+const getDormApplicationConfig = async (req, res) => {
+  try {
+    let config = await DormApplicationConfig.findOne({ key: 'global' });
+    if (!config) {
+      config = await DormApplicationConfig.create({ key: 'global', isOpen: false });
+    }
+    res.json({ success: true, data: config });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   submitApplication,
   verifyChapaPayment,
@@ -774,5 +786,6 @@ module.exports = {
   assignStudentToRoom,
   findRoomForStudent,
   getOcrScheduler,
-  resetMyApplication
+  resetMyApplication,
+  getDormApplicationConfig
 };
