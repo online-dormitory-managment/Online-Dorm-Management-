@@ -7,6 +7,7 @@ const Student = require('../models/Student');
 const Notification = require('../models/Notification');
 const Log = require('../models/Log');
 const Proctor = require('../models/Proctor');
+const User = require('../models/User');
 const DormApplicationWindow = require('../models/DormApplicationWindow');
 const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
 const DormApplicationConfig = require('../models/DormApplicationConfig');

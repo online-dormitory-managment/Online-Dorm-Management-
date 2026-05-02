@@ -91,6 +91,13 @@ const dormApplicationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Room',
     },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reviewedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
