@@ -171,37 +171,7 @@ export default function SuperAdminDashboard() {
            </div>
         </div>
 
-        <div className="mb-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Dorm Application Global Notification</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-            Write a message for all students, admins, and proctors, then notify all users.
-          </p>
-          <textarea
-            value={notifyText}
-            onChange={(e) => setNotifyText(e.target.value)}
-            placeholder="Write your message..."
-            className="w-full min-h-[110px] rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 mb-4"
-          />
-          <div className="flex flex-wrap items-center gap-4">
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-              <input
-                type="checkbox"
-                checked={isDormOpen}
-                onChange={(e) => setIsDormOpen(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Open dorm application
-            </label>
-            <button
-              type="button"
-              onClick={handleNotifyAllAndToggle}
-              disabled={updatingOpenState}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
-            >
-              {updatingOpenState ? 'Sending...' : 'Notify All'}
-            </button>
-          </div>
-        </div>
+
 
         {/* Stats Grid - MATCHING Admin Dashboard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">

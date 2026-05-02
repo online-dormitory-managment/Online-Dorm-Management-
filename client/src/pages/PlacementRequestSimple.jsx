@@ -132,6 +132,7 @@ export default function PlacementRequestSimple() {
   const [submitError, setSubmitError] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
   const [isDormOpen, setIsDormOpen] = useState(true);
+  const [openedAtDate, setOpenedAtDate] = useState(null);
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
 
   const [fydaFront, setFydaFront] = useState(null);
@@ -244,6 +245,9 @@ export default function PlacementRequestSimple() {
           if (configRes && configRes.success) {
             setIsDormOpen(configRes.data?.isOpen ?? true);
             setGlobalAnnouncement(configRes.data?.announcement || '');
+            if (configRes.data?.openedAt) {
+              setOpenedAtDate(new Date(configRes.data.openedAt));
+            }
           }
         } catch (configErr) {
           console.error('Failed to load global config', configErr);
@@ -794,7 +798,23 @@ export default function PlacementRequestSimple() {
             </div>
           )}
 
-          {!existingApp && isDormOpen && (
+          {!existingApp && isDormOpen && openedAtDate && Date.now() < openedAtDate.getTime() && (
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-8 text-center shadow-sm">
+              <FaCalendarAlt className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-bounce" />
+              <h2 className="text-2xl font-bold text-blue-800 mb-2">Applications Not Yet Open</h2>
+              <p className="text-blue-600 mb-2">
+                The dorm application window is scheduled to open on:
+              </p>
+              <div className="inline-block bg-white px-4 py-2 rounded-lg border border-blue-100 font-bold text-blue-700 text-lg mb-4 shadow-sm">
+                {openedAtDate.toLocaleString()}
+              </div>
+              <p className="text-sm text-blue-500">
+                Please wait until this exact time to apply.
+              </p>
+            </div>
+          )}
+
+          {!existingApp && isDormOpen && (!openedAtDate || Date.now() >= openedAtDate.getTime()) && (
           <form onSubmit={submit} className="space-y-6">
             {submitError && (
               <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4">

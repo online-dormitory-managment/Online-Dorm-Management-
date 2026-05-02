@@ -333,6 +333,14 @@ const submitApplication = async (req, res) => {
       });
     }
 
+    if (globalConfig?.openedAt && Date.now() < new Date(globalConfig.openedAt).getTime()) {
+      const openDateStr = new Date(globalConfig.openedAt).toLocaleString();
+      return res.status(403).json({
+        success: false,
+        message: `Dorm applications will open on ${openDateStr}. Please wait until then to apply.`,
+      });
+    }
+
     const reason = String(req.body.reason || 'Dorm placement request').trim();
     // CITY INPUT REMOVED: Detection is now automated via OCR
 

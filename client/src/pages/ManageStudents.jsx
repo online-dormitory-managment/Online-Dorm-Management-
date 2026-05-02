@@ -8,7 +8,9 @@ import {
   FaSearch,
   FaCheck,
   FaTimes,
-  FaSpinner
+  FaSpinner,
+  FaGlobe,
+  FaCalendarAlt
 } from 'react-icons/fa';
 import adminApi from '../api/adminApi';
 import adminDormApi from '../api/adminDormApi';
@@ -26,6 +28,53 @@ export default function ManageStudents() {
   const [viewMode, setViewMode] = useState('Applications');
   const [residentStudents, setResidentStudents] = useState([]);
   const [statusFilter, setStatusFilter] = useState('All');
+
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [notifyText, setNotifyText] = useState('');
+  const [isDormOpen, setIsDormOpen] = useState(false);
+  const [openedAt, setOpenedAt] = useState('');
+  const [updatingConfig, setUpdatingConfig] = useState(false);
+
+  const openConfigModal = async () => {
+    setShowConfigModal(true);
+    try {
+      const res = await adminDormApi.getGlobalApplicationConfig();
+      if (res && res.data) {
+        setIsDormOpen(res.data.isOpen);
+        setNotifyText(res.data.announcement || '');
+        if (res.data.openedAt) {
+          const d = new Date(res.data.openedAt);
+          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          setOpenedAt(d.toISOString().slice(0, 16));
+        } else {
+          setOpenedAt('');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateConfig = async () => {
+    setUpdatingConfig(true);
+    try {
+      await adminDormApi.updateGlobalApplicationConfig({
+        announcement: notifyText,
+        isOpen: isDormOpen,
+        openedAt: openedAt ? new Date(openedAt).toISOString() : null,
+      });
+      toast.success('Dorm application config updated and users notified!');
+      setShowConfigModal(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update config');
+    } finally {
+      setUpdatingConfig(false);
+    }
+  };
 
   const fetchStudents = async () => {
     try {
@@ -215,21 +264,32 @@ export default function ManageStudents() {
           </div>
         </div>}
         {viewMode === 'Applications' && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-700">Status</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none pl-3 pr-9 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
-            >
-              <option>All</option>
-              <option>Pending</option>
-              <option>Waiting</option>
-              <option>PaymentPending</option>
-              <option>Assigned</option>
-              <option>Rejected</option>
-              <option>Approved</option>
-            </select>
+          <div className="flex items-center gap-4">
+            {isSuperAdmin && (
+              <button
+                onClick={openConfigModal}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors shadow-sm font-semibold"
+              >
+                <FaGlobe />
+                Global Dorm Settings
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700">Status</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none pl-3 pr-9 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+              >
+                <option>All</option>
+                <option>Pending</option>
+                <option>Waiting</option>
+                <option>PaymentPending</option>
+                <option>Assigned</option>
+                <option>Rejected</option>
+                <option>Approved</option>
+              </select>
+            </div>
           </div>
         )}
         <button className="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors ml-auto">
@@ -368,6 +428,88 @@ export default function ManageStudents() {
           </div>
         </div>
       </div>
+
+      {/* Global Config Modal */}
+      {showConfigModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <FaGlobe className="text-purple-600" />
+                Dorm Application Settings
+              </h2>
+              <button
+                onClick={() => setShowConfigModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Global Announcement Message</label>
+                <textarea
+                  value={notifyText}
+                  onChange={(e) => setNotifyText(e.target.value)}
+                  placeholder="Write a message for all students, admins, and proctors..."
+                  className="w-full min-h-[120px] rounded-xl border border-slate-200 p-3 bg-slate-50 text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 transition-all outline-none"
+                />
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isDormOpen}
+                    onChange={(e) => setIsDormOpen(e.target.checked)}
+                    className="w-5 h-5 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+                  />
+                  <div>
+                    <span className="block text-sm font-bold text-slate-800">Open Dorm Applications</span>
+                    <span className="block text-xs text-slate-500 mt-0.5">Allow students to submit placement requests.</span>
+                  </div>
+                </label>
+              </div>
+
+              {isDormOpen && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                    <FaCalendarAlt className="text-slate-400" />
+                    Scheduled Opening Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={openedAt}
+                    onChange={(e) => setOpenedAt(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 transition-all outline-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                    If set in the future, students cannot apply until this exact time. Students from outside Addis apply immediately, Shager waits 3 mins, Addis waits 5 mins relative to this time.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-100 bg-slate-50">
+              <button
+                onClick={() => setShowConfigModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateConfig}
+                disabled={updatingConfig}
+                className="px-6 py-2 bg-purple-600 text-white text-sm font-bold rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-sm flex items-center gap-2"
+              >
+                {updatingConfig && <FaSpinner className="w-4 h-4 animate-spin" />}
+                Notify All & Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

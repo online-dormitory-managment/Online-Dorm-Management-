@@ -625,7 +625,7 @@ const updateDormApplicationConfigAndNotifyAll = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only SuperAdmin can update global dorm opening.' });
     }
 
-    const { announcement = '', isOpen = false } = req.body || {};
+    const { announcement = '', isOpen = false, openedAt } = req.body || {};
     let config = await DormApplicationConfig.findOne({ key: 'global' });
     if (!config) {
       config = await DormApplicationConfig.create({ key: 'global' });
@@ -633,7 +633,11 @@ const updateDormApplicationConfigAndNotifyAll = async (req, res) => {
 
     config.isOpen = Boolean(isOpen);
     config.announcement = String(announcement || '').trim();
-    config.openedAt = config.isOpen ? new Date() : null;
+    if (config.isOpen) {
+      config.openedAt = openedAt ? new Date(openedAt) : new Date();
+    } else {
+      config.openedAt = null;
+    }
     config.updatedBy = req.user?._id || null;
     await config.save();
 
