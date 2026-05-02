@@ -30,6 +30,20 @@ export default function BuildingManagement() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [campusOptions, setCampusOptions] = useState([]);
+  const [departmentsByCampus, setDepartmentsByCampus] = useState([]);
+  const [crossPolicies, setCrossPolicies] = useState([]);
+  const [openWindowForm, setOpenWindowForm] = useState({
+    campus: '',
+    title: 'Dorm application is now open',
+    message: 'Dorm applications are now open. Please submit your request.',
+    addisWaitMinutes: 2,
+    shagerWaitMinutes: 1,
+  });
+  const [policyForm, setPolicyForm] = useState({
+    sourceDepartment: '',
+    targetCampus: '',
+  });
 
   const [formData, setFormData] = useState({
     // Building
@@ -47,6 +61,8 @@ export default function BuildingManagement() {
 
   useEffect(() => {
     fetchBuildings();
+    fetchPolicyOptions();
+    fetchCrossPolicies();
   }, []);
 
   const fetchBuildings = async () => {
@@ -82,6 +98,67 @@ export default function BuildingManagement() {
       toast.error('Failed to load rooms');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPolicyOptions = async () => {
+    try {
+      const res = await adminDormApi.getCampusDepartmentOptions();
+      const campuses = res?.campuses || [];
+      const byCampus = res?.byCampus || [];
+      setCampusOptions(campuses);
+      setDepartmentsByCampus(byCampus);
+      if (!openWindowForm.campus && campuses.length > 0) {
+        setOpenWindowForm((prev) => ({ ...prev, campus: campuses[0] }));
+      }
+    } catch (e) {
+      toast.error('Failed to load campus/department options');
+    }
+  };
+
+  const fetchCrossPolicies = async () => {
+    try {
+      const res = await adminDormApi.getCrossCampusPolicies();
+      setCrossPolicies(res?.data || []);
+    } catch (e) {
+      toast.error('Failed to load cross-campus rules');
+    }
+  };
+
+  const handleOpenApplicationWindow = async () => {
+    try {
+      await adminDormApi.openApplicationWindow(openWindowForm);
+      toast.success('Dorm application window opened and students notified.');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to open dorm application window');
+    }
+  };
+
+  const handleAddPolicy = async () => {
+    if (!policyForm.sourceDepartment || !policyForm.targetCampus) {
+      return toast.error('Select both department and campus');
+    }
+    try {
+      await adminDormApi.upsertCrossCampusPolicy({
+        sourceDepartment: policyForm.sourceDepartment,
+        targetCampus: policyForm.targetCampus,
+        isActive: true,
+      });
+      toast.success('Cross-campus acceptance rule saved');
+      setPolicyForm({ sourceDepartment: '', targetCampus: '' });
+      fetchCrossPolicies();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to save policy');
+    }
+  };
+
+  const handleDeletePolicy = async (id) => {
+    try {
+      await adminDormApi.deleteCrossCampusPolicy(id);
+      toast.success('Rule removed');
+      fetchCrossPolicies();
+    } catch (error) {
+      toast.error('Failed to delete rule');
     }
   };
 
@@ -211,6 +288,85 @@ export default function BuildingManagement() {
 
   return (
     <main className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h2 className="text-lg font-bold text-slate-900 mb-3">Open Dorm Application (Campus)</h2>
+          <p className="text-xs text-slate-500 mb-4">
+            When opened, all students in selected campus receive a notification. Addis and Shager wait minutes are linked to this opening time.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={openWindowForm.campus}
+              onChange={(e) => setOpenWindowForm((prev) => ({ ...prev, campus: e.target.value }))}
+              className="px-3 py-2 rounded-lg border border-slate-200"
+            >
+              {campusOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input
+              type="number"
+              min="0"
+              value={openWindowForm.addisWaitMinutes}
+              onChange={(e) => setOpenWindowForm((prev) => ({ ...prev, addisWaitMinutes: Number(e.target.value || 0) }))}
+              className="px-3 py-2 rounded-lg border border-slate-200"
+              placeholder="Addis minutes"
+            />
+            <input
+              type="number"
+              min="0"
+              value={openWindowForm.shagerWaitMinutes}
+              onChange={(e) => setOpenWindowForm((prev) => ({ ...prev, shagerWaitMinutes: Number(e.target.value || 0) }))}
+              className="px-3 py-2 rounded-lg border border-slate-200"
+              placeholder="Shager minutes"
+            />
+            <button
+              type="button"
+              onClick={handleOpenApplicationWindow}
+              className="px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold"
+            >
+              Notify & Open
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h2 className="text-lg font-bold text-slate-900 mb-3">Cross-Campus Acceptance Rules</h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Choose which department can be accepted by another campus if beds are available.
+          </p>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <select
+              value={policyForm.sourceDepartment}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, sourceDepartment: e.target.value }))}
+              className="px-3 py-2 rounded-lg border border-slate-200 col-span-2"
+            >
+              <option value="">Select department</option>
+              {departmentsByCampus.flatMap((group) => group.departments || []).filter(Boolean).map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            <select
+              value={policyForm.targetCampus}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, targetCampus: e.target.value }))}
+              className="px-3 py-2 rounded-lg border border-slate-200"
+            >
+              <option value="">Campus</option>
+              {campusOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <button type="button" onClick={handleAddPolicy} className="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold mb-3">
+            Save Rule
+          </button>
+          <div className="max-h-28 overflow-auto space-y-2">
+            {crossPolicies.map((p) => (
+              <div key={p._id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-2 py-2">
+                <span>{p.sourceDepartment} -> {p.targetCampus}</span>
+                <button type="button" onClick={() => handleDeletePolicy(p._id)} className="text-rose-600 font-semibold">Remove</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Breadcrumbs / Back button */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">

@@ -529,7 +529,7 @@ export default function PlacementRequestSimple() {
         await clearDraft();
         navigate('/student-portal');
       } else if (status === 'Waiting') {
-        toast.success('Application submitted! Please wait 5 minutes for automatic room assignment.', { duration: 6000, icon: '⏳' });
+        toast.success(res?.message || 'Application submitted! Please wait for automatic room availability check.', { duration: 6000, icon: '⏳' });
         setExistingApp(res.application);
         await clearDraft();
         // Stay on this page to show the countdown timer
@@ -694,7 +694,7 @@ export default function PlacementRequestSimple() {
                   </div>
                   <h3 className="text-xl font-black text-blue-900">Please Wait — Room Assignment in Progress</h3>
                   <p className="text-sm text-blue-700 max-w-md mx-auto">
-                    As an Addis Ababa applicant, your application requires a <strong>5-minute waiting period</strong> before automatic room assignment. 
+                    Based on your FYDA back-side address, your application has a required waiting period before automatic room assignment. 
                     Once confirmed, you will be notified to <strong>pay the fee</strong> and secure your spot.
                   </p>
                   {timeLeft ? (

@@ -316,7 +316,7 @@ setInterval(async () => {
                   user: student.user,
                   type: 'DormApplication',
                   title: 'Dorm assigned',
-                  message: `Your dorm has been assigned automatically after the 5-minute wait. Room: ${app.assignedRoom.roomNumber || app.assignedRoom.name || 'Assigned'}.`,
+                  message: `Your dorm has been assigned automatically after the waiting period. Room: ${app.assignedRoom.roomNumber || app.assignedRoom.name || 'Assigned'}.`,
                   data: {
                     applicationId: String(app._id),
                     roomId: String(app.assignedRoom._id),
@@ -327,7 +327,7 @@ setInterval(async () => {
                   user: student.user,
                   type: 'DormApplication',
                   title: 'Assignment pending',
-                  message: 'Your 5-minute wait is over, but no room is available yet. We will continue assigning when space becomes available.',
+                  message: 'Your waiting period is over, but no room is available yet. We will continue assigning when space becomes available.',
                   data: { applicationId: String(app._id) },
                 });
               }

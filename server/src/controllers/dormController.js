@@ -47,6 +47,8 @@ const Student = require('../models/Student');
 const Room = require('../models/Room');
 const Floor = require('../models/Floor');
 const Notification = require('../models/Notification');
+const DormApplicationWindow = require('../models/DormApplicationWindow');
+const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
 const ADDIS_WAIT_MS = 5 * 60 * 1000;
 const { normalizeFilePath } = require('../utils/fileNormalization');
 
@@ -62,6 +64,44 @@ function campusMatcher(campus) {
   if (!normalized) return /.*/i;
   const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
   return new RegExp(`^${escaped}$`, 'i');
+}
+
+function normalizeToken(input) {
+  return String(input || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function detectCityCategoryFromBackText(backText) {
+  const t = normalizeAscii(backText);
+  if (!t) return 'other';
+  if (t.includes('sheger')) return 'shager';
+  if (t.includes('addisababa') || t.includes('addis') || t.includes('finfinne') || t.includes('finfine')) {
+    return 'addis';
+  }
+  return 'other';
+}
+
+async function getEffectiveWaitMsForCityCategory(cityCategory, campus) {
+  if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
+
+  const defaultMs = cityCategory === 'shager' ? 3 * 60 * 1000 : ADDIS_WAIT_MS;
+  const activeWindow = await DormApplicationWindow.findOne({
+    campus: { $regex: campusMatcher(campus) },
+    isOpen: true,
+  }).sort({ openedAt: -1 });
+
+  if (!activeWindow || !activeWindow.openedAt) return defaultMs;
+
+  const overrideMin =
+    cityCategory === 'shager'
+      ? Number(activeWindow.shagerWaitMinutes || 1)
+      : Number(activeWindow.addisWaitMinutes || 2);
+
+  const elapsed = Date.now() - new Date(activeWindow.openedAt).getTime();
+  const remaining = Math.max(0, overrideMin * 60 * 1000 - elapsed);
+  return remaining;
 }
 const { getCampusForDepartment } = require('../utils/campus');
 const {
@@ -203,7 +243,23 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
   let room = await Room.findOne(query).populate('building');
   if (room) return { room, isOverflow: false, campus };
 
-  // Campus-based policy: do not auto-fallback to other campuses here.
+  // Admin-controlled cross-campus acceptance by department.
+  const policies = await CampusDepartmentPolicy.find({
+    sourceDepartment: { $regex: campusMatcher(student.department) },
+    isActive: true,
+  }).select('targetCampus');
+
+  const targetCampuses = [...new Set(policies.map((p) => String(p.targetCampus || '').trim()).filter(Boolean))];
+  for (const targetCampus of targetCampuses) {
+    if (normalizeToken(targetCampus) === normalizeToken(campus)) continue;
+    const overflowQuery = {
+      ...query,
+      campus: { $regex: campusMatcher(targetCampus) },
+    };
+    room = await Room.findOne(overflowQuery).populate('building');
+    if (room) return { room, isOverflow: true, campus: targetCampus };
+  }
+
   return { room: null, isOverflow: false, campus };
 }
 
@@ -352,13 +408,18 @@ const submitApplication = async (req, res) => {
       });
     }
 
+    const cityCategory = detectCityCategoryFromBackText(backText);
+    if (cityCategory === 'shager') finalCity = 'Shager';
+    if (cityCategory === 'addis') finalCity = 'Addis Ababa';
+
     let verificationNote = `Automatically detected city: ${finalCity}`;
 
     const originVerified = true;
 
-    const isAddis = String(finalCity).trim().toLowerCase() === 'addis ababa';
+    const isAddis = cityCategory === 'addis' || cityCategory === 'shager';
     const isFar = impliesFarAddis(finalCity, backText);
-    const addisWaitMs = 5 * 60 * 1000;
+    const studentCampus = getCampusForDepartment(student.department);
+    const waitMs = await getEffectiveWaitMsForCityCategory(cityCategory, studentCampus);
     const isSelfSponsored = isSelfSponsoredStudent(student);
     
     let status = 'Pending';
@@ -369,9 +430,12 @@ const submitApplication = async (req, res) => {
     let foundCampus = null;
 
     if (isAddis) {
-      // Addis Ababa applicants must wait 5 minutes before next action.
+      // OCR-based city policy:
+      // - Addis Ababa => 5 min default
+      // - Shager => 3 min default
+      // - If admin opened applications for campus, waits use window-linked minutes.
       status = 'Waiting';
-      scheduledReleaseAt = new Date(Date.now() + addisWaitMs);
+      scheduledReleaseAt = new Date(Date.now() + waitMs);
       paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     } else {
       // Outside Addis residents get immediate room check
@@ -455,7 +519,9 @@ const submitApplication = async (req, res) => {
 
     let message = 'Application submitted successfully.';
     if (application.status === 'Waiting') {
-      message = 'City of Addis Ababa detected. Please wait 5 minutes while we verify on-campus room availability.';
+      const minuteLabel = cityCategory === 'shager' ? 'Shager' : 'Addis Ababa';
+      const waitMinsDisplay = Math.max(0, Math.ceil(waitMs / 60000));
+      message = `City of ${minuteLabel} detected. Please wait ${waitMinsDisplay} minute(s) while we verify room availability.`;
     } else if (application.status === 'PaymentPending') {
       message = `Room found (${foundRoom?.building?.name || ''} - ${foundRoom?.roomNumber || ''}) on ${foundCampus || 'assigned'} campus. Please complete your payment to finalize assignment.`;
     } else if (application.status === 'Assigned') {

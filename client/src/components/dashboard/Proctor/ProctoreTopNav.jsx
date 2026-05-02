@@ -189,7 +189,7 @@ export default function ProctorTopNav() {
   }, [activeDropdown, userDropdownOpen]);
 
   return (
-    <nav className="bg-white border-b border-slate-200 shadow-sm">
+    <nav className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
       <div className="max-w-none mx-auto px-2 sm:px-4 lg:px-6">
         <div className="flex justify-between h-16">
           {/* Logo and Brand */}

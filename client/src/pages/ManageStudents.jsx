@@ -11,6 +11,7 @@ import {
   FaSpinner
 } from 'react-icons/fa';
 import adminApi from '../api/adminApi';
+import adminDormApi from '../api/adminDormApi';
 import toast from 'react-hot-toast';
 import AdminHeader from '../components/layout/AdminHeader';
 import ProfilePictureUpload from '../components/common/ProfilePictureUpload';
@@ -22,6 +23,8 @@ export default function ManageStudents() {
   const [students, setStudents] = useState([]);
   const [processingId, setProcessingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState('Applications');
+  const [residentStudents, setResidentStudents] = useState([]);
 
   const fetchStudents = async () => {
     try {
@@ -79,8 +82,18 @@ export default function ManageStudents() {
     }
   };
 
+  const fetchResidentStudents = async () => {
+    try {
+      const res = await adminDormApi.getStudentsList();
+      setResidentStudents(res?.data || []);
+    } catch (error) {
+      toast.error('Failed to load resident students');
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
+    fetchResidentStudents();
   }, []);
 
   const handleApprove = async (e, applicationId) => {
@@ -133,6 +146,18 @@ export default function ManageStudents() {
     });
   }, [selectedType, students, searchTerm]);
 
+  const filteredResidents = useMemo(() => {
+    return residentStudents.filter((student) => {
+      const q = searchTerm.toLowerCase();
+      return (
+        String(student.fullName || '').toLowerCase().includes(q) ||
+        String(student.studentID || '').toLowerCase().includes(q) ||
+        String(student.user?.email || '').toLowerCase().includes(q) ||
+        String(student.campus || '').toLowerCase().includes(q)
+      );
+    });
+  }, [residentStudents, searchTerm]);
+
   return (
     <main className="flex-1 overflow-y-auto px-6 py-6">
       <div className="mb-4">
@@ -140,6 +165,22 @@ export default function ManageStudents() {
         <p className="text-sm text-slate-500">
           View current residents, manage assignments, and update records.
         </p>
+        <div className="mt-3 inline-flex rounded-lg border border-slate-200 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setViewMode('Applications')}
+            className={`px-3 py-1.5 text-sm font-semibold ${viewMode === 'Applications' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700'}`}
+          >
+            Applications
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('Residents')}
+            className={`px-3 py-1.5 text-sm font-semibold ${viewMode === 'Residents' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700'}`}
+          >
+            Resident Students
+          </button>
+        </div>
       </div>
 
       {/* Filters row */}
@@ -154,7 +195,7 @@ export default function ManageStudents() {
             className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 bg-slate-50"
           />
         </div>
-        <div className="flex items-center gap-2">
+        {viewMode === 'Applications' && <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-slate-700">Student Type</span>
           <div className="relative">
             <select
@@ -170,7 +211,7 @@ export default function ManageStudents() {
             </select>
             <FaFilter className="w-3 h-3 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-        </div>
+        </div>}
         <button className="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors ml-auto">
           <FaDownload className="w-4 h-4" />
           Export
@@ -184,13 +225,23 @@ export default function ManageStudents() {
             <tr>
               <th className="px-6 py-3 text-left font-semibold">Student</th>
               <th className="px-6 py-3 text-left font-semibold">Student ID</th>
-              <th className="px-6 py-3 text-left font-semibold">Check-in Date</th>
-              <th className="px-6 py-3 text-left font-semibold">Status</th>
-              <th className="px-6 py-3 text-right font-semibold">Actions</th>
+              {viewMode === 'Applications' ? (
+                <>
+                  <th className="px-6 py-3 text-left font-semibold">Check-in Date</th>
+                  <th className="px-6 py-3 text-left font-semibold">Status</th>
+                  <th className="px-6 py-3 text-right font-semibold">Actions</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-6 py-3 text-left font-semibold">Campus</th>
+                  <th className="px-6 py-3 text-left font-semibold">Building/Room</th>
+                  <th className="px-6 py-3 text-left font-semibold">Department</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredStudents.length > 0 ? (
+            {viewMode === 'Applications' && filteredStudents.length > 0 ? (
               filteredStudents.map((student) => (
                 <tr
                   key={student.applicationId || student.id}
@@ -252,6 +303,21 @@ export default function ManageStudents() {
                       )}
                     </div>
                   </td>
+                </tr>
+              ))
+            ) : viewMode === 'Residents' && filteredResidents.length > 0 ? (
+              filteredResidents.map((student) => (
+                <tr key={student._id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="font-semibold text-slate-900">{student.fullName}</p>
+                      <p className="text-xs text-slate-500">{student.user?.email || ''}</p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-700">{student.studentID}</td>
+                  <td className="px-6 py-4 text-slate-700">{student.campus || '-'}</td>
+                  <td className="px-6 py-4 text-slate-700">{student.building || '-'} / {student.roomNumber || '-'}</td>
+                  <td className="px-6 py-4 text-slate-700">{student.department || '-'}</td>
                 </tr>
               ))
             ) : (

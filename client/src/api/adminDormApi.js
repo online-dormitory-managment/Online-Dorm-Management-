@@ -49,7 +49,36 @@ const adminDormApi = {
   deleteRoom: async (id) => {
     const res = await api.delete(`/admin-dorm/rooms/${id}`);
     return res.data;
-  }
+  },
+
+  openApplicationWindow: async (data) => {
+    const res = await api.post('/admin-dorm/application-window/open', data);
+    return res.data;
+  },
+  getApplicationWindows: async () => {
+    const res = await api.get('/admin-dorm/application-window');
+    return res.data;
+  },
+  getCampusDepartmentOptions: async () => {
+    const res = await api.get('/admin-dorm/campus-department-options');
+    return res.data;
+  },
+  getCrossCampusPolicies: async () => {
+    const res = await api.get('/admin-dorm/cross-campus-policies');
+    return res.data;
+  },
+  upsertCrossCampusPolicy: async (data) => {
+    const res = await api.post('/admin-dorm/cross-campus-policies', data);
+    return res.data;
+  },
+  deleteCrossCampusPolicy: async (id) => {
+    const res = await api.delete(`/admin-dorm/cross-campus-policies/${id}`);
+    return res.data;
+  },
+  getStudentsList: async () => {
+    const res = await api.get('/admin-dorm/students-list');
+    return res.data;
+  },
 };
 
 export default adminDormApi;

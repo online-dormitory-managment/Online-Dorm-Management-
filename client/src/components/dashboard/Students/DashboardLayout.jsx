@@ -8,7 +8,7 @@ export default function DashboardLayout({
   showSystemStatusInHeader = false 
 }) {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {/* Top Navigation Bar */}
       <TopNav />
       
@@ -16,7 +16,7 @@ export default function DashboardLayout({
       <main className="flex-1">
         {/* Optional Page Header */}
         {showPageHeader && (
-          <div className="bg-white border-b border-slate-200">
+          <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
             <div className="max-w-7xl mx-auto px-6 py-6">
               {breadcrumbs.length > 0 && (
                 <nav className="text-xs text-slate-500 mb-2">

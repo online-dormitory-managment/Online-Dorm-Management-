@@ -16,7 +16,14 @@ const {
   addRoom,
   updateRoom,
   deleteRoom,
-  reviewApplication
+  reviewApplication,
+  openDormApplicationForCampus,
+  getDormApplicationWindows,
+  getCrossCampusPolicies,
+  upsertCrossCampusPolicy,
+  deleteCrossCampusPolicy,
+  getCampusDepartmentOptions,
+  getAdminStudentList,
 } = require('../controllers/adminDormcontroller');
 
 const router = express.Router();
@@ -43,6 +50,19 @@ router.get('/floors/:floorId/rooms', getRoomsByFloor);
 router.post('/rooms', addRoom);
 router.put('/rooms/:id', updateRoom);
 router.delete('/rooms/:id', deleteRoom);
+
+// Application window notifications + wait timing controls
+router.post('/application-window/open', openDormApplicationForCampus);
+router.get('/application-window', getDormApplicationWindows);
+
+// Cross-campus department acceptance controls
+router.get('/cross-campus-policies', getCrossCampusPolicies);
+router.post('/cross-campus-policies', upsertCrossCampusPolicy);
+router.delete('/cross-campus-policies/:id', deleteCrossCampusPolicy);
+router.get('/campus-department-options', getCampusDepartmentOptions);
+
+// Admin student list (same style as proctor list data)
+router.get('/students-list', getAdminStudentList);
 
 // Application review - with campus permission check
 router.put(

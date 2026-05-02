@@ -4,9 +4,13 @@ const Floor = require('../models/Floor');
 const Room = require('../models/Room');
 const DormApplication = require('../models/DormApplication');
 const Student = require('../models/Student');
+const Notification = require('../models/Notification');
 const Log = require('../models/Log');
 const Proctor = require('../models/Proctor');
+const DormApplicationWindow = require('../models/DormApplicationWindow');
+const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
 const { createNotification } = require('./notificationController');
+const { getCampusForDepartment } = require('../utils/campus');
 
 // --- Building CRUD ---
 
@@ -444,6 +448,164 @@ const runRoomAudit = async (req, res) => {
   }
 };
 
+const openDormApplicationForCampus = async (req, res) => {
+  try {
+    const {
+      campus,
+      title = 'Dorm application is now open',
+      message = 'Students can now submit dorm applications.',
+      addisWaitMinutes = 2,
+      shagerWaitMinutes = 1,
+    } = req.body || {};
+
+    if (!campus) {
+      return res.status(400).json({ message: 'Campus is required.' });
+    }
+
+    await DormApplicationWindow.updateMany(
+      { campus: { $regex: new RegExp(`^${String(campus).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }, isOpen: true },
+      { $set: { isOpen: false } }
+    );
+
+    const windowEntry = await DormApplicationWindow.create({
+      campus,
+      title,
+      message,
+      addisWaitMinutes: Number(addisWaitMinutes || 2),
+      shagerWaitMinutes: Number(shagerWaitMinutes || 1),
+      createdBy: req.user?._id,
+      openedAt: new Date(),
+      isOpen: true,
+    });
+
+    const students = await Student.find({}).select('user department fullName');
+    const usersToNotify = students
+      .filter((s) => getCampusForDepartment(s.department) === campus && s.user)
+      .map((s) => s.user);
+
+    if (usersToNotify.length > 0) {
+      await Notification.insertMany(
+        usersToNotify.map((userId) => ({
+          user: userId,
+          type: 'DormApplication',
+          title,
+          message,
+          data: {
+            campus,
+            openedAt: windowEntry.openedAt,
+            addisWaitMinutes: windowEntry.addisWaitMinutes,
+            shagerWaitMinutes: windowEntry.shagerWaitMinutes,
+          },
+          isSent: true,
+        }))
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Dorm application opened for ${campus}. Notifications sent to ${usersToNotify.length} students.`,
+      window: windowEntry,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getDormApplicationWindows = async (req, res) => {
+  try {
+    const windows = await DormApplicationWindow.find({}).sort({ openedAt: -1 }).limit(50);
+    res.json({ success: true, data: windows });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getCrossCampusPolicies = async (req, res) => {
+  try {
+    const policies = await CampusDepartmentPolicy.find({}).sort({ createdAt: -1 });
+    res.json({ success: true, data: policies });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const upsertCrossCampusPolicy = async (req, res) => {
+  try {
+    const { sourceDepartment, targetCampus, isActive = true } = req.body || {};
+    if (!sourceDepartment || !targetCampus) {
+      return res.status(400).json({ message: 'sourceDepartment and targetCampus are required.' });
+    }
+
+    const policy = await CampusDepartmentPolicy.findOneAndUpdate(
+      { sourceDepartment, targetCampus },
+      { sourceDepartment, targetCampus, isActive, createdBy: req.user?._id },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ success: true, data: policy });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deleteCrossCampusPolicy = async (req, res) => {
+  try {
+    await CampusDepartmentPolicy.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Policy deleted.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getCampusDepartmentOptions = async (req, res) => {
+  try {
+    const campuses = await DormBuilding.distinct('campus');
+    const departments = await Student.distinct('department');
+
+    const byCampus = campuses.map((campus) => ({
+      campus,
+      departments: departments.filter((d) => getCampusForDepartment(d) === campus),
+    }));
+
+    res.json({ success: true, campuses, byCampus });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getAdminStudentList = async (req, res) => {
+  try {
+    const rooms = await Room.find({})
+      .populate('building')
+      .populate({
+        path: 'assignedStudents',
+        populate: { path: 'user', select: 'name email userID profilePicture' },
+      });
+
+    const students = [];
+    rooms.forEach((room) => {
+      (room.assignedStudents || []).forEach((student) => {
+        students.push({
+          _id: student._id,
+          studentID: student.studentID,
+          fullName: student.fullName,
+          department: student.department,
+          year: student.year,
+          gender: student.gender,
+          roomNumber: room.roomNumber,
+          building: room.building?.name || '',
+          buildingID: room.building?.buildingID || '',
+          campus: room.campus,
+          user: student.user,
+        });
+      });
+    });
+
+    res.json({ success: true, count: students.length, data: students });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getAllBuildings,
   getBuildingById,
@@ -458,5 +620,12 @@ module.exports = {
   addRoom,
   updateRoom,
   deleteRoom,
-  reviewApplication
+  reviewApplication,
+  openDormApplicationForCampus,
+  getDormApplicationWindows,
+  getCrossCampusPolicies,
+  upsertCrossCampusPolicy,
+  deleteCrossCampusPolicy,
+  getCampusDepartmentOptions,
+  getAdminStudentList,
 };
