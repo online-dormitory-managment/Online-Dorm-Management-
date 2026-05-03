@@ -1059,7 +1059,7 @@ export default function PlacementRequestSimple() {
                     <div className="text-center">
                       <h4 className="font-bold text-blue-900">Checking Room Availability...</h4>
                       <p className="text-xs text-blue-700">
-                        {timeLeft ? `Your 5-minute wait is in progress (${timeLeft} remaining).` : 'Finalizing checks now. The Pay Online button will appear automatically once a room is found.'}
+                        {timeLeft ? `Your scheduled wait is in progress (${timeLeft} remaining).` : 'Finalizing checks now. The Pay Online button will appear automatically once a room is found.'}
                       </p>
                     </div>
                   </div>

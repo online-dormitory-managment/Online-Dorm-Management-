@@ -50,7 +50,7 @@ const Notification = require('../models/Notification');
 const DormApplicationWindow = require('../models/DormApplicationWindow');
 const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
 const DormApplicationConfig = require('../models/DormApplicationConfig');
-const ADDIS_WAIT_MS = 5 * 60 * 1000;
+const ADDIS_WAIT_MS = 3 * 60 * 1000;
 const { normalizeFilePath } = require('../utils/fileNormalization');
 
 function roomGenderFilter(gender) {
@@ -87,11 +87,11 @@ function detectCityCategoryFromBackText(backText) {
 async function getEffectiveWaitMsForCityCategory(cityCategory, campus) {
   if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
 
-  const defaultMs = cityCategory === 'shager' ? 3 * 60 * 1000 : ADDIS_WAIT_MS;
+  const defaultMs = cityCategory === 'shager' ? 1 * 60 * 1000 : ADDIS_WAIT_MS;
   const config = await DormApplicationConfig.findOne({ key: 'global' });
   if (!config?.isOpen || !config?.openedAt) return defaultMs;
 
-  const requiredMs = cityCategory === 'addis' ? 5 * 60 * 1000 : defaultMs;
+  const requiredMs = cityCategory === 'addis' ? 3 * 60 * 1000 : defaultMs;
   const elapsed = Date.now() - new Date(config.openedAt).getTime();
   return Math.max(0, requiredMs - elapsed);
 }

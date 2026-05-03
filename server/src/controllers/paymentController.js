@@ -15,7 +15,7 @@ function isSelfSponsoredStudent(studentLike) {
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
 const CHAPA_CALLBACK_URL = (process.env.CHAPA_CALLBACK_URL || '').trim();
-const ADDIS_WAIT_MS = 5 * 60 * 1000;
+const ADDIS_WAIT_MS = 3 * 60 * 1000;
 
 function buildPlacementReturnUrl() {
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
