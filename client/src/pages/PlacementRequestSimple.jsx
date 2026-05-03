@@ -787,22 +787,176 @@ export default function PlacementRequestSimple() {
                 </div>
               )}
 
-              {/* OTHER STATUSES (Pending, Rejected, etc) */}
-              {!['Waiting', 'Assigned', 'PaymentPending'].includes(existingApp.status) && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Current placement request</h3>
-                  <p className="text-sm text-gray-700">
-                    Status: <span className="font-semibold">{existingApp.status}</span>
-                    {existingApp.city ? ` • City: ${existingApp.city}` : ''}
-                  </p>
-                  {existingApp.notes && (
-                    <p className="mt-2 text-sm text-gray-600">Note: {existingApp.notes}</p>
-                  )}
-                  {existingApp.paymentStatus && existingApp.paymentStatus !== 'Not Applicable' && (
-                    <p className="mt-2 text-sm text-gray-600">
-                      Payment: <span className="font-semibold">{existingApp.paymentStatus}</span>
-                    </p>
-                  )}
+                </div>
+              )}
+
+              {/* PLACEMENT FEE SECTION - MOVED HERE TO BE VISIBLE AFTER SUBMISSION */}
+              {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Pending' || existingApp?.status === 'Assigned' || isPaid) && (
+                <div className="mt-8 pt-8 border-t border-slate-100">
+                  <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
+                        <FaCreditCard className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-800">Placement Fee</h3>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Status:</span>
+                              {isPaid ? (
+                                <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                  <FaCheckCircle className="w-2.5 h-2.5" /> Paid
+                                </span>
+                              ) : existingApp?.status === 'Waiting' ? (
+                                <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 shadow-sm animate-pulse">
+                                  <FaCalendarAlt className="w-2.5 h-2.5" /> 
+                                  {timeLeft ? `Assigning in ${timeLeft}` : 'Assigning now...'}
+                                </span>
+                              ) : paymentStatus === 'verifying' ? (
+                                <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 animate-pulse">
+                                  <FaSpinner className="w-2.5 h-2.5 animate-spin" /> Verifying...
+                                </span>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
+                                    <FaSpinner className="w-2.5 h-2.5" /> Pending
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-600 mt-3">
+                          {isPaid 
+                            ? 'Your payment of 3,000 ETB has been successfully verified via the Chapa Gateway.' 
+                            : paymentStatus === 'verifying'
+                            ? 'Please wait, we are confirming your payment with the server...'
+                            : 'Self-sponsored students are required to pay 3,000 ETB for dorm placement.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {isPaid ? (
+                      <div className="bg-emerald-50 rounded-2xl p-6 border-2 border-emerald-200 relative overflow-hidden animate-in slide-in-from-top-4 duration-500">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-200/20 rounded-full blur-2xl"></div>
+                        <div className="flex items-center gap-4 mb-4 relative z-10">
+                          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <FaCheckCircle className="w-6 h-6 text-emerald-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-emerald-900">Payment Successful!</h4>
+                            <p className="text-xs text-emerald-700 font-medium tracking-wide uppercase">Dorm Fee Confirmed</p>
+                          </div>
+                        </div>
+                        <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-emerald-100 mb-4 relative z-10">
+                          <p className="text-xs text-emerald-800 leading-relaxed font-medium">
+                            Thank you! Your payment has been verified. 
+                            <strong> Your room assignment is being finalized automatically. You will see your room details here shortly.</strong>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
+                          <FaLock className="w-2.5 h-2.5" /> ID: {existingApp?.chapaTxRef || 'CHAPA-SUCCESS'}
+                        </div>
+                      </div>
+                    ) : existingApp?.status === 'Waiting' ? (
+                      <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-6">
+                        <div className="relative flex items-center justify-center">
+                          <FaSpinner className="w-16 h-16 text-blue-500 animate-spin opacity-20" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <FaHourglassHalf className="w-6 h-6 text-blue-600 animate-pulse" />
+                          </div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <h4 className="font-black text-blue-900 text-lg mb-1">Checking Room Availability...</h4>
+                          <p className="text-sm text-blue-700 font-medium max-w-xs mx-auto mb-6">
+                            We are verifying room slots for your campus. Please wait while we process your priority.
+                          </p>
+                          
+                          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm inline-block min-w-[200px]">
+                            <p className="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-2">Estimated Wait</p>
+                            <p className="text-4xl font-black text-blue-600 font-mono tracking-wider tabular-nums">
+                              {timeLeft || '--:--'}
+                            </p>
+                            <div className="mt-4 w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
+                                style={{ 
+                                  width: timeLeft ? `${Math.min(100, (parseInt(timeLeft.split(':')[0]) * 60 + parseInt(timeLeft.split(':')[1])) / 1.8)}%` : '100%' 
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                          
+                          <p className="text-[10px] text-blue-400 mt-6 uppercase font-bold tracking-widest">
+                            The Pay Online button will appear automatically
+                          </p>
+                        </div>
+                      </div>
+                    ) : paymentStatus === 'verifying' ? (
+                      <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-4">
+                        <FaSpinner className="w-10 h-10 text-blue-500 animate-spin" />
+                        <div className="text-center">
+                          <h4 className="font-bold text-blue-900">Verifying Payment...</h4>
+                          <p className="text-xs text-blue-700">Connecting to Chapa Secure Server</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between group hover:bg-blue-50/30 transition-all">
+                          <div>
+                            <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1">Total Amount</p>
+                            <p className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">3,000.00 <span className="text-sm font-bold opacity-50">ETB</span></p>
+                          </div>
+                          <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                            <FaUniversity className="w-5 h-5 text-blue-500" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <button
+                            type="button"
+                            onClick={handleChapaPayment}
+                            className="group relative overflow-hidden flex items-center justify-center gap-3 py-4 bg-[#01c775] hover:bg-[#01b068] text-white rounded-2xl font-black transition-all shadow-xl shadow-emerald-100 hover:-translate-y-1 active:translate-y-0"
+                          >
+                            <div className="absolute inset-0 bg-white/10 translate-y-12 group-hover:translate-y-0 transition-transform duration-500"></div>
+                            <FaCreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            <span className="text-lg relative z-10">Pay Online</span>
+                          </button>
+                          
+                          <div 
+                            onClick={() => document.getElementById('receipt-upload-existing').click()}
+                            className="flex flex-col items-center justify-center py-4 bg-white border-2 border-dashed border-slate-200 text-slate-500 rounded-2xl font-bold hover:border-blue-400 hover:bg-blue-50/10 transition-all cursor-pointer group"
+                          >
+                            <FaUpload className="w-5 h-5 mb-1 group-hover:text-blue-500 transition-colors" />
+                            <span className="text-sm">Manual Receipt</span>
+                            <input
+                              id="receipt-upload-existing"
+                              type="file"
+                              className="hidden"
+                              accept="image/*,application/pdf"
+                              onChange={(e) => handleFileChange(e, setPaymentReceipt, 'paymentReceipt')}
+                            />
+                          </div>
+                        </div>
+
+                        {paymentReceipt && (
+                          <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                <FaFile className="text-blue-600 w-4 h-4" />
+                              </div>
+                              <span className="text-xs font-bold text-blue-800 truncate max-w-[150px]">{paymentReceipt.name}</span>
+                            </div>
+                            <button type="button" onClick={() => setPaymentReceipt(null)} className="p-2 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors">
+                              <FaTimes className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -999,172 +1153,7 @@ export default function PlacementRequestSimple() {
               </div>
             )}
             
-            {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Pending' || existingApp?.status === 'Assigned' || isPaid) && (
-              <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
-                    <FaCreditCard className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-800">Placement Fee</h3>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Status:</span>
-                          {isPaid ? (
-                            <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                              <FaCheckCircle className="w-2.5 h-2.5" /> Paid
-                            </span>
-                          ) : existingApp?.status === 'Waiting' ? (
-                            <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 shadow-sm animate-pulse">
-                              <FaCalendarAlt className="w-2.5 h-2.5" /> 
-                              {timeLeft ? `Assigning in ${timeLeft}` : 'Assigning now...'}
-                            </span>
-                          ) : paymentStatus === 'verifying' ? (
-                            <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 animate-pulse">
-                              <FaSpinner className="w-2.5 h-2.5 animate-spin" /> Verifying...
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
-                                <FaSpinner className="w-2.5 h-2.5" /> Pending
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-600 mt-3">
-                      {isPaid 
-                        ? 'Your payment of 3,000 ETB has been successfully verified via the Chapa Gateway.' 
-                        : paymentStatus === 'verifying'
-                        ? 'Please wait, we are confirming your payment with the server...'
-                        : 'Self-sponsored students are required to pay 3,000 ETB for dorm placement.'}
-                    </p>
-                  </div>
-                </div>
 
-                {isPaid ? (
-                  <div className="bg-emerald-50 rounded-2xl p-6 border-2 border-emerald-200 relative overflow-hidden animate-in slide-in-from-top-4 duration-500">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-200/20 rounded-full blur-2xl"></div>
-                    <div className="flex items-center gap-4 mb-4 relative z-10">
-                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                        <FaCheckCircle className="w-6 h-6 text-emerald-500" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-emerald-900">Payment Successful!</h4>
-                        <p className="text-xs text-emerald-700 font-medium tracking-wide uppercase">Dorm Fee Confirmed</p>
-                      </div>
-                    </div>
-                    <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-emerald-100 mb-4 relative z-10">
-                      <p className="text-xs text-emerald-800 leading-relaxed font-medium">
-                        Thank you! Your payment has been verified. 
-                        <strong> Your room assignment is being finalized automatically. You will see your room details here shortly.</strong>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
-                      <FaLock className="w-2.5 h-2.5" /> ID: {existingApp?.chapaTxRef || 'CHAPA-SUCCESS'}
-                    </div>
-                  </div>
-                ) : existingApp?.status === 'Waiting' ? (
-                  <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-6">
-                    <div className="relative flex items-center justify-center">
-                      <FaSpinner className="w-16 h-16 text-blue-500 animate-spin opacity-20" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <FaHourglassHalf className="w-6 h-6 text-blue-600 animate-pulse" />
-                      </div>
-                    </div>
-                    
-                    <div className="text-center">
-                      <h4 className="font-black text-blue-900 text-lg mb-1">Checking Room Availability...</h4>
-                      <p className="text-sm text-blue-700 font-medium max-w-xs mx-auto mb-6">
-                        We are verifying room slots for your campus. Please wait while we process your priority.
-                      </p>
-                      
-                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm inline-block min-w-[200px]">
-                        <p className="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-2">Estimated Wait</p>
-                        <p className="text-4xl font-black text-blue-600 font-mono tracking-wider tabular-nums">
-                          {timeLeft || '--:--'}
-                        </p>
-                        <div className="mt-4 w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
-                            style={{ 
-                              width: timeLeft ? `${Math.min(100, (parseInt(timeLeft.split(':')[0]) * 60 + parseInt(timeLeft.split(':')[1])) / 1.8)}%` : '100%' 
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                      
-                      <p className="text-[10px] text-blue-400 mt-6 uppercase font-bold tracking-widest">
-                        The Pay Online button will appear automatically
-                      </p>
-                    </div>
-                  </div>
-                ) : paymentStatus === 'verifying' ? (
-                  <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-4">
-                    <FaSpinner className="w-10 h-10 text-blue-500 animate-spin" />
-                    <div className="text-center">
-                      <h4 className="font-bold text-blue-900">Verifying Payment...</h4>
-                      <p className="text-xs text-blue-700">Connecting to Chapa Secure Server</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between group hover:bg-blue-50/30 transition-all">
-                      <div>
-                        <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1">Total Amount</p>
-                        <p className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">3,000.00 <span className="text-sm font-bold opacity-50">ETB</span></p>
-                      </div>
-                      <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-                        <FaUniversity className="w-5 h-5 text-blue-500" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <button
-                        type="button"
-                        onClick={handleChapaPayment}
-                        className="group relative overflow-hidden flex items-center justify-center gap-3 py-4 bg-[#01c775] hover:bg-[#01b068] text-white rounded-2xl font-black transition-all shadow-xl shadow-emerald-100 hover:-translate-y-1 active:translate-y-0"
-                      >
-                        <div className="absolute inset-0 bg-white/10 translate-y-12 group-hover:translate-y-0 transition-transform duration-500"></div>
-                        <FaCreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                        <span className="text-lg relative z-10">Pay Online</span>
-                      </button>
-                      
-                      <div 
-                        onClick={() => document.getElementById('receipt-upload').click()}
-                        className="flex flex-col items-center justify-center py-4 bg-white border-2 border-dashed border-slate-200 text-slate-500 rounded-2xl font-bold hover:border-blue-400 hover:bg-blue-50/10 transition-all cursor-pointer group"
-                      >
-                        <FaUpload className="w-5 h-5 mb-1 group-hover:text-blue-500 transition-colors" />
-                        <span className="text-sm">Manual Receipt</span>
-                        <input
-                          id="receipt-upload"
-                          type="file"
-                          className="hidden"
-                          accept="image/*,application/pdf"
-                          onChange={(e) => handleFileChange(e, setPaymentReceipt, 'paymentReceipt')}
-                        />
-                      </div>
-                    </div>
-
-                    {paymentReceipt && (
-                      <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                            <FaFile className="text-blue-600 w-4 h-4" />
-                          </div>
-                          <span className="text-xs font-bold text-blue-800 truncate max-w-[150px]">{paymentReceipt.name}</span>
-                        </div>
-                        <button type="button" onClick={() => setPaymentReceipt(null)} className="p-2 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors">
-                          <FaTimes className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Payment Modal Overlay */}
             {showPaymentModal && (
@@ -1182,7 +1171,7 @@ export default function PlacementRequestSimple() {
                     </div>
                     <div className="text-center">
                       <p className="text-emerald-100 text-xs uppercase font-black tracking-widest mb-1">Total to Pay</p>
-                      <h3 className="text-4xl font-black">1,500.00 <span className="text-lg opacity-80">ETB</span></h3>
+                      <h3 className="text-4xl font-black">3,000.00 <span className="text-lg opacity-80">ETB</span></h3>
                     </div>
                   </div>
 
