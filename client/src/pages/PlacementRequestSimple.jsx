@@ -273,41 +273,31 @@ export default function PlacementRequestSimple() {
   useEffect(() => {
     if (existingApp?.status === 'Waiting' && existingApp?.scheduledReleaseAt) {
       let refreshInFlight = false;
-      const interval = setInterval(() => {
+      
+      const updateTimer = () => {
         const target = new Date(existingApp.scheduledReleaseAt).getTime();
         const now = new Date().getTime();
         const diff = target - now;
 
         if (diff <= 0) {
           setTimeLeft(null);
-          // Keep polling briefly after timer end so PaymentPending/Assigned state appears reliably.
           if (!refreshInFlight) {
             refreshInFlight = true;
-            dormApi
-              .getMyApplication()
-              .then(setExistingApp)
-              .catch(() => {})
-              .finally(() => {
-                refreshInFlight = false;
-              });
+            dormApi.getMyApplication().then(setExistingApp).catch(() => {}).finally(() => { refreshInFlight = false; });
           }
         } else {
           const mins = Math.floor(diff / 60000);
           const secs = Math.floor((diff % 60000) / 1000);
           setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
-          // While waiting, periodically refresh server state in case status changes.
-          if (secs % 10 === 0 && !refreshInFlight) {
+          if (secs % 15 === 0 && !refreshInFlight) {
             refreshInFlight = true;
-            dormApi
-              .getMyApplication()
-              .then(setExistingApp)
-              .catch(() => {})
-              .finally(() => {
-                refreshInFlight = false;
-              });
+            dormApi.getMyApplication().then(setExistingApp).catch(() => {}).finally(() => { refreshInFlight = false; });
           }
         }
-      }, 1000);
+      };
+
+      updateTimer(); // Initial call
+      const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
     } else {
       setTimeLeft(null);
@@ -1054,12 +1044,37 @@ export default function PlacementRequestSimple() {
                     </div>
                   </div>
                 ) : existingApp?.status === 'Waiting' ? (
-                  <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-4">
-                    <FaSpinner className="w-10 h-10 text-blue-500 animate-spin" />
+                  <div className="bg-blue-50 rounded-2xl p-8 border-2 border-dashed border-blue-200 flex flex-col items-center justify-center gap-6">
+                    <div className="relative flex items-center justify-center">
+                      <FaSpinner className="w-16 h-16 text-blue-500 animate-spin opacity-20" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <FaHourglassHalf className="w-6 h-6 text-blue-600 animate-pulse" />
+                      </div>
+                    </div>
+                    
                     <div className="text-center">
-                      <h4 className="font-bold text-blue-900">Checking Room Availability...</h4>
-                      <p className="text-xs text-blue-700">
-                        {timeLeft ? `Your scheduled wait is in progress (${timeLeft} remaining).` : 'Finalizing checks now. The Pay Online button will appear automatically once a room is found.'}
+                      <h4 className="font-black text-blue-900 text-lg mb-1">Checking Room Availability...</h4>
+                      <p className="text-sm text-blue-700 font-medium max-w-xs mx-auto mb-6">
+                        We are verifying room slots for your campus. Please wait while we process your priority.
+                      </p>
+                      
+                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm inline-block min-w-[200px]">
+                        <p className="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-2">Estimated Wait</p>
+                        <p className="text-4xl font-black text-blue-600 font-mono tracking-wider tabular-nums">
+                          {timeLeft || '--:--'}
+                        </p>
+                        <div className="mt-4 w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
+                            style={{ 
+                              width: timeLeft ? `${Math.min(100, (parseInt(timeLeft.split(':')[0]) * 60 + parseInt(timeLeft.split(':')[1])) / 1.8)}%` : '100%' 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-[10px] text-blue-400 mt-6 uppercase font-bold tracking-widest">
+                        The Pay Online button will appear automatically
                       </p>
                     </div>
                   </div>
