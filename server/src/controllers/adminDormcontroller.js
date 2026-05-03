@@ -588,11 +588,11 @@ const getAdminStudentList = async (req, res) => {
       (room.assignedStudents || []).forEach((student) => {
         students.push({
           _id: student._id,
-          studentID: student.studentID,
-          fullName: student.fullName,
+          studentID: student.user?.userID || 'N/A',
+          fullName: student.user?.name || 'Unknown',
           department: student.department,
           year: student.year,
-          gender: student.gender,
+          gender: student.user?.gender || 'N/A',
           roomNumber: room.roomNumber,
           building: room.building?.name || '',
           buildingID: room.building?.buildingID || '',
@@ -679,6 +679,42 @@ const updateDormApplicationConfigAndNotifyAll = async (req, res) => {
   }
 };
 
+const sendGlobalAnnouncement = async (req, res) => {
+  try {
+    if (req.user?.role !== 'SuperAdmin') {
+      return res.status(403).json({ success: false, message: 'Only SuperAdmin can send global announcements.' });
+    }
+
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'Announcement message is required.' });
+    }
+
+    const targetRoles = ['Student', 'CampusAdmin', 'Proctor'];
+    const users = await User.find({ role: { $in: targetRoles } }).select('_id');
+    const userIds = users.map((u) => u._id);
+
+    if (userIds.length) {
+      await Notification.insertMany(
+        userIds.map((userId) => ({
+          user: userId,
+          type: 'DormApplication',
+          title: 'System Announcement',
+          message: message.trim(),
+          isSent: true,
+        }))
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Announcement sent to ${userIds.length} users.`,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getAllBuildings,
   getBuildingById,
@@ -703,4 +739,5 @@ module.exports = {
   getAdminStudentList,
   getDormApplicationConfig,
   updateDormApplicationConfigAndNotifyAll,
+  sendGlobalAnnouncement,
 };

@@ -41,7 +41,9 @@ const StudentList = () => {
       setLoading(true);
       const response = await proctorApi.getStudents();
       const studentData = (response.data || []).map((student) => {
-        const initials = student.fullName
+        const sName = student.user?.name || student.fullName || 'Unknown';
+        const sID = student.user?.userID || student.studentID || 'N/A';
+        const initials = sName
           .split(' ')
           .filter(Boolean)
           .slice(0, 2)
@@ -51,11 +53,11 @@ const StudentList = () => {
 
         return {
           _id: student._id,
-          id: student.studentID,
+          id: sID,
           initials,
-          name: student.fullName,
+          name: sName,
           department: student.department || 'N/A',
-          studentId: student.studentID || 'N/A',
+          studentId: sID,
           dorm: student.roomNumber || 'N/A',
           block: student.buildingID || student.building || 'N/A',
           email: student.user?.email || 'N/A',

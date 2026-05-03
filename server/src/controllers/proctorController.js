@@ -160,11 +160,11 @@ exports.getStudents = async (req, res) => {
         room.assignedStudents.forEach(student => {
           students.push({
             _id: student._id,
-            studentID: student.studentID,
-            fullName: student.fullName,
+            studentID: student.user?.userID || 'N/A',
+            fullName: student.user?.name || 'Unknown',
             department: student.department,
             year: student.year,
-            gender: student.gender,
+            gender: student.user?.gender || 'N/A',
             roomNumber: room.roomNumber,
             building: buildingName,
             buildingID: buildingID_code,

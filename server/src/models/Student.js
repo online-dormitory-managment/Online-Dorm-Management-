@@ -3,11 +3,8 @@ const mongoose = require('mongoose');
 
 const studentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  studentID: { type: String, required: true, unique: true },
-  fullName: { type: String, required: true },
   year: { type: Number, required: true },
   department: { type: String, required: true },
-  gender: { type: String, enum: ['Male', 'Female'], required: true },
   sponsorship: {
     type: String,
     enum: ['Government', 'Self-Sponsored'],

@@ -26,6 +26,7 @@ const {
   getAdminStudentList,
   getDormApplicationConfig,
   updateDormApplicationConfigAndNotifyAll,
+  sendGlobalAnnouncement,
 } = require('../controllers/adminDormcontroller');
 
 const router = express.Router();
@@ -69,6 +70,7 @@ router.get('/students-list', getAdminStudentList);
 // SuperAdmin global open/close + notify all
 router.get('/global-application-config', getDormApplicationConfig);
 router.put('/global-application-config', updateDormApplicationConfigAndNotifyAll);
+router.post('/global-announcement', sendGlobalAnnouncement);
 
 // Application review - with campus permission check
 router.put(

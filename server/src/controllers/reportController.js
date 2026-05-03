@@ -73,7 +73,7 @@ const getReports = async (req, res) => {
     }
 
     const reports = await Report.find(query)
-      .populate('sender', 'fullName userID role campus')
+      .populate('sender', 'name userID role campus')
       .sort({ createdAt: -1 });
 
     res.json(reports);

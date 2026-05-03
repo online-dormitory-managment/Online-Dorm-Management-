@@ -7,7 +7,8 @@ const fs = require('fs');
 const getDashboardData = async (req, res) => {
   try {
     // Find student by user link
-    const student = await Student.findOne({ user: req.user._id });
+    // Find student by user link and populate identity fields
+    const student = await Student.findOne({ user: req.user._id }).populate('user');
 
     if (!student) {
       return res.status(404).json({
@@ -52,19 +53,19 @@ const getDashboardData = async (req, res) => {
     const dashboardData = {
       success: true,
       student: {
-        name: student.fullName,
-        studentId: student.studentID,
+        name: student.user?.name || 'N/A',
+        studentId: student.user?.userID || 'N/A',
         dormitory: assignedRoom?.building?.name || 'Not Assigned',
         roomNumber: assignedRoom?.roomNumber || 'N/A',
         status: application?.status || (assignedRoom ? 'Assigned' : 'No Application'),
         building: assignedRoom?.building?.name || 'N/A',
         block: assignedRoom?.building?.buildingID || 'N/A',
         floor: assignedRoom?.floor?.floorNumber || 'N/A',
-        campus: assignedRoom?.building?.campus || student.campus || 'Main',
+        campus: assignedRoom?.building?.campus || student.user?.campus || 'Main',
         department: student.department || 'N/A',
         year: student.year || 'N/A',
         yearOfStudy: student.year || 'N/A',
-        gender: student.gender,
+        gender: student.user?.gender || 'N/A',
         sponsorship: student.sponsorship || 'Government',
         idImage: application?.nationalIdFront
           ? `/${String(application.nationalIdFront).replace(/^\/+/, '')}`
@@ -280,7 +281,10 @@ const getRoomDetails = async (req, res) => {
     const room = await Room.findOne({ assignedStudents: student._id })
       .populate('building')
       .populate('floor')
-      .populate('assignedStudents');
+      .populate({
+        path: 'assignedStudents',
+        populate: { path: 'user' }
+      });
 
     if (!room) {
       return res.status(404).json({ success: false, message: 'No room assigned yet' });
@@ -295,7 +299,7 @@ const getRoomDetails = async (req, res) => {
         .filter(s => s._id.toString() !== student._id.toString())
         .map(s => ({
           id: s._id,
-          name: s.fullName,
+          name: s.user?.name || 'Unknown',
           major: s.department,
           year: s.year,
           hasProfile: true,

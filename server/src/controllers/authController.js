@@ -71,13 +71,9 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // 4) Fallback: if login id is a student ID, resolve via Student -> User link.
-    // This helps when User.userID and Student.studentID drift slightly.
+    // 4) Fallback: if login id matches a userID in User table
     if (!user && normalizedUgr) {
-      const linkedStudent = await Student.findOne({ studentID: normalizedUgr }).populate('user');
-      if (linkedStudent?.user) {
-        user = linkedStudent.user;
-      }
+      user = await User.findOne({ userID: normalizedUgr });
     }
 
     if (!user) {
@@ -271,11 +267,6 @@ const updateProfile = async (req, res) => {
     }
 
     await user.save();
-
-    // Keep role-linked profile docs in sync (especially Student.fullName used in FYDA checks).
-    if (nextName && ['Student', 'EventPoster', 'Vendor'].includes(user.role)) {
-      await Student.findOneAndUpdate({ user: user._id }, { fullName: nextName });
-    }
 
     res.json({
       success: true,

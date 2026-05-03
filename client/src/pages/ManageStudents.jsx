@@ -106,9 +106,9 @@ export default function ManageStudents() {
             }
 
             return {
-              id: s.studentID,
+              id: s.user?.userID || s.studentID || 'N/A',
               applicationId: app._id,
-              name: s.fullName,
+              name: s.user?.name || s.fullName || 'No Name',
               email: s.user?.email || '',
               checkIn: new Date(app.createdAt).toLocaleDateString(),
               status: app.status,
@@ -390,11 +390,11 @@ export default function ManageStudents() {
                 <tr key={student._id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-semibold text-slate-900">{student.fullName}</p>
+                      <p className="font-semibold text-slate-900">{student.user?.name || student.fullName || 'No Name'}</p>
                       <p className="text-xs text-slate-500">{student.user?.email || ''}</p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-700">{student.studentID}</td>
+                  <td className="px-6 py-4 text-slate-700">{student.user?.userID || student.studentID || 'N/A'}</td>
                   <td className="px-6 py-4 text-slate-700">{student.campus || '-'}</td>
                   <td className="px-6 py-4 text-slate-700">{student.building || '-'} / {student.roomNumber || '-'}</td>
                   <td className="px-6 py-4 text-slate-700">{student.department || '-'}</td>

@@ -11,7 +11,7 @@ const { getCampusForDepartment } = require('../utils/campus');
 async function assignRoomForStudent(studentDoc) {
   try {
     // Find a non-full room whose building gender matches the student gender
-    const desiredGender = studentDoc.gender;
+    const desiredGender = studentDoc.user?.gender || studentDoc.gender;
 
     // 1. Find buildings of the correct gender
     const matchingBuildings = await DormBuilding.find({ gender: desiredGender }).select('_id');
@@ -38,10 +38,10 @@ const getAllApplications = async (req, res) => {
     let applications = await DormApplication.find({})
       .populate({
         path: 'student',
-        select: 'fullName studentID department year gender sponsorship',
+        select: 'department year sponsorship',
         populate: {
           path: 'user',
-          select: 'name email userID'
+          select: 'name email userID gender campus'
         }
       })
       .populate('assignedRoom')
@@ -119,7 +119,10 @@ const reviewApplication = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const application = await DormApplication.findById(id).populate('student');
+    const application = await DormApplication.findById(id).populate({
+      path: 'student',
+      populate: { path: 'user' }
+    });
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
     application.status = status;

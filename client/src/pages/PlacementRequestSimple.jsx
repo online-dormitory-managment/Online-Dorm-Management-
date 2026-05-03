@@ -554,9 +554,16 @@ export default function PlacementRequestSimple() {
         toast.success(res?.message || 'Room found! Please complete payment.', { icon: '💰' });
         setExistingApp(res.application);
         await clearDraft();
-        // If we have a payment URL from server, we could redirect, 
-        // but showing the payment block on this page is safer for data flow.
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Automatic redirect to Chapa if URL is provided by server
+        if (res.chapaPaymentUrl) {
+          toast.loading('Redirecting to Chapa Secure Server...');
+          setTimeout(() => {
+            window.location.href = res.chapaPaymentUrl;
+          }, 1500);
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       } else {
         toast.success(res?.message || 'Submitted successfully.');
         await clearDraft();
@@ -798,7 +805,7 @@ export default function PlacementRequestSimple() {
             </div>
           )}
 
-          {!existingApp && isDormOpen && openedAtDate && Date.now() < openedAtDate.getTime() && (
+          {(!existingApp || forceShowForm) && isDormOpen && openedAtDate && Date.now() < openedAtDate.getTime() && (
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-8 text-center shadow-sm">
               <FaCalendarAlt className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-bounce" />
               <h2 className="text-2xl font-bold text-blue-800 mb-2">Applications Not Yet Open</h2>
@@ -979,7 +986,7 @@ export default function PlacementRequestSimple() {
               </div>
             )}
             
-            {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || isPaid) && (
+            {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Assigned' || isPaid || studentTypeInfo.isSelfSponsored) && (
               <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">

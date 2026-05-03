@@ -20,7 +20,8 @@ import {
   FaCheckCircle,
   FaClock,
   FaPaperPlane,
-  FaCheck
+  FaCheck,
+  FaSpinner
 } from 'react-icons/fa';
 import operationalReportApi from '../api/operationalReportApi';
 import adminApi from '../api/adminApi';
@@ -204,6 +205,93 @@ export default function SuperAdminDashboard() {
               </div>
             );
           })}
+        </div>
+
+        {/* Global Control Center */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <FaBell className="text-blue-500" />
+                Global Announcement
+              </h2>
+              <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest rounded-md">
+                Notify All Users
+              </span>
+            </div>
+            
+            <div className="space-y-4">
+              <textarea
+                value={notifyText}
+                onChange={(e) => setNotifyText(e.target.value)}
+                placeholder="Type an important message for all students, admins, and proctors..."
+                className="w-full h-32 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+              />
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={async () => {
+                    if (!notifyText.trim()) return toast.error('Please enter a message');
+                    try {
+                      setUpdatingOpenState(true);
+                      await adminDormApi.sendGlobalAnnouncement(notifyText);
+                      toast.success('Announcement sent successfully!');
+                      setNotifyText('');
+                    } catch (err) {
+                      toast.error('Failed to send announcement');
+                    } finally {
+                      setUpdatingOpenState(false);
+                    }
+                  }}
+                  disabled={updatingOpenState}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {updatingOpenState ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
+                  Notify All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <FaCogs className="text-orange-500" />
+                Dorm Status
+              </h2>
+            </div>
+            
+            <div className="flex flex-col items-center justify-center py-6 gap-6">
+              <div 
+                onClick={() => setIsDormOpen(!isDormOpen)}
+                className={`w-24 h-12 rounded-full p-1 cursor-pointer transition-colors duration-300 relative ${isDormOpen ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+              >
+                <div className={`w-10 h-10 bg-white rounded-full shadow-md transition-transform duration-300 flex items-center justify-center ${isDormOpen ? 'translate-x-12' : 'translate-x-0'}`}>
+                  {isDormOpen ? <FaCheck className="text-emerald-500 text-xs" /> : <div className="w-2 h-2 bg-slate-300 rounded-full" />}
+                </div>
+              </div>
+              
+              <div className="text-center">
+                <p className={`text-xl font-black uppercase tracking-widest ${isDormOpen ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {isDormOpen ? 'Applications Open' : 'Applications Closed'}
+                </p>
+                <p className="text-xs text-slate-500 mt-2 font-medium">
+                  {isDormOpen ? 'Students can apply for placement' : 'Placement portal is currently disabled'}
+                </p>
+              </div>
+
+              <button
+                onClick={handleNotifyAllAndToggle}
+                disabled={updatingOpenState}
+                className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md ${
+                  isDormOpen 
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 dark:shadow-none' 
+                    : 'bg-slate-800 hover:bg-slate-900 text-white'
+                } disabled:opacity-50`}
+              >
+                {updatingOpenState ? 'Saving...' : 'Apply Status Change'}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 mb-8">

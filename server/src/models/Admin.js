@@ -7,15 +7,7 @@ const adminSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    adminType: {
-        type: String,
-        enum: ['CampusAdmin', 'SuperAdmin'],
-        required: true
-    },
-    campus: {
-        type: String, // Which campus this admin manages (if CampusAdmin)
-    },
-    contactNumber: {
+    name: {
         type: String
     },
     permissions: [{

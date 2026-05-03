@@ -12,7 +12,7 @@ exports.submitMaintenance = async (req, res) => {
 
     const urgencyNorm = ['Low', 'Medium', 'High'].includes(urgency) ? urgency : 'Low';
 
-    const student = await Student.findOne({ user: req.user._id });
+    const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
@@ -49,7 +49,7 @@ exports.submitMaintenance = async (req, res) => {
         if (proctorDoc && proctorDoc.user) {
           const proctorUser = proctorDoc.user;
           // student is the Student model which has gender
-          if (proctorUser.gender && student.gender && proctorUser.gender !== student.gender) {
+          if (proctorUser.gender && student.user?.gender && proctorUser.gender !== student.user?.gender) {
             continue; // skip if genders do not match
           }
           await createNotification({
@@ -100,13 +100,18 @@ exports.getRequestsForProctor = async (req, res) => {
     // Get maintenance requests for this building
     const buildingRequests = await MaintenanceRequest.find({ building: buildingId })
       .populate({ path: 'requestedBy', select: 'userID name email gender' })
-      .populate({ path: 'student', select: 'studentID fullName department year gender' })
+      .populate({
+        path: 'student',
+        select: 'department year sponsorship',
+        populate: { path: 'user', select: 'userID name gender' }
+      })
       .sort({ createdAt: -1 });
 
     const filteredRequests = buildingRequests.filter(r => {
       if (!req.user.gender) return true; // Proctor has no gender, show all
-      if (!r.student || !r.student.gender) return true; // Student has no gender, show all
-      return r.student.gender === req.user.gender;
+      const studentGender = r.student?.user?.gender || r.student?.gender;
+      if (!r.student || !studentGender) return true; // Student has no gender, show all
+      return studentGender === req.user.gender;
     });
 
     return res.json({ success: true, count: filteredRequests.length, data: filteredRequests });

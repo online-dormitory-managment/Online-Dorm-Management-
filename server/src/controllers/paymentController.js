@@ -88,9 +88,9 @@ const initializePayment = async (req, res) => {
     const data = {
       amount: String(amount), // Send as string for compatibility
       currency,
-      email: student.user.email,
-      first_name: student.fullName.split(' ')[0],
-      last_name: student.fullName.split(' ').slice(1).join(' ') || 'Student',
+      email: student.user?.email || "student@aau.edu.et",
+      first_name: (student.user?.name || "Student").split(' ')[0],
+      last_name: (student.user?.name || "Student").split(' ').slice(1).join(' ') || 'User',
       tx_ref,
       return_url: returnUrl,
       "customization[title]": "AAU Dormitory Fee",
@@ -219,7 +219,10 @@ const finalizeVerification = async (chapaData, req, res) => {
     // Assignment status is determined when student submits dorm request (FYDA-verified flow).
     const studentId = transaction ? transaction.student : (await Student.findOne({ user: req.user._id }))?._id;
     if (studentId) {
-      let application = await DormApplication.findOne({ student: studentId }).populate('student');
+      let application = await DormApplication.findOne({ student: studentId }).populate({
+        path: 'student',
+        populate: { path: 'user' }
+      });
       if (application) {
         const now = new Date();
         const isAddis = String(application.city || '').trim().toLowerCase() === 'addis ababa';
@@ -233,7 +236,7 @@ const finalizeVerification = async (chapaData, req, res) => {
         // or skipped wait (if non-Addis) and a room was confirmed available.
         // Now we assign it!
         if (application.status === 'PaymentPending') {
-          console.log(`🏠 Manual verify: Assigning room for ${application.student?.fullName || 'student'}...`);
+          console.log(`🏠 Manual verify: Assigning room for ${application.student?.user?.name || 'student'}...`);
           await assignStudentToRoom(application, application.student);
         }
 

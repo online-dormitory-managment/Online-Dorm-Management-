@@ -6,14 +6,6 @@ const proctorSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
         unique: true
-    },
-    assignedBuilding: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'DormBuilding',
-        required: true
-    },
-    contactNumber: {
-        type: String
     }
 }, { timestamps: true });
 

@@ -13,9 +13,9 @@ const requestExit = async (req, res) => {
 
         if (req.user.role === 'Proctor' || req.user.role === 'Admin') {
             if (!studentId) return res.status(400).json({ message: 'Student ID is required for administrative requests' });
-            student = await Student.findById(studentId);
+            student = await Student.findById(studentId).populate('user');
         } else {
-            student = await Student.findOne({ user: req.user._id });
+            student = await Student.findOne({ user: req.user._id }).populate('user');
         }
 
         if (!student) {
@@ -38,15 +38,15 @@ const requestExit = async (req, res) => {
                 const proctorDocs = await Proctor.find({ assignedBuilding: studentRoom.building._id }).populate('user');
                 
                 // Filter proctors by the student's gender (based on their User profile)
-                const targetProctors = proctorDocs.filter(p => p.user && p.user.gender === student.gender);
+                const targetProctors = proctorDocs.filter(p => p.user && p.user.gender === (student.user?.gender || student.gender));
                 
                 for (const proctorDoc of targetProctors) {
                     await createNotification({
                         user: proctorDoc.user._id,
                         type: 'ExitClearance',
                         title: 'New Exit Clearance Request',
-                        message: `${student.fullName} has requested exit clearance for Block ${studentRoom.building.name}, Room ${studentRoom.roomNumber}.`,
-                        data: { clearanceId: clearance._id.toString(), studentId: student.studentID }
+                        message: `${student.user?.name || student.fullName} has requested exit clearance for Block ${studentRoom.building.name}, Room ${studentRoom.roomNumber}.`,
+                        data: { clearanceId: clearance._id.toString(), studentId: student.user?.userID || student.studentID }
                     });
                 }
             }
@@ -96,14 +96,15 @@ const getPendingRequests = async (req, res) => {
             const allRequests = await ExitClearance.find({ status: 'Pending' })
                 .populate({
                     path: 'student',
-                    select: 'fullName studentID gender'
+                    populate: { path: 'user', select: 'name userID gender' }
                 })
                 .sort({ createdAt: 1 });
 
             // Filter requests for students in proctor's building with same gender
             const authRequests = [];
             for (const clearance of allRequests) {
-                if (clearance.student && clearance.student.gender === proctorGender) {
+                const sGender = clearance.student?.user?.gender || clearance.student?.gender;
+                if (clearance.student && sGender === proctorGender) {
                     const studentRoom = await Room.findOne({ assignedStudents: clearance.student._id })
                         .populate('building');
                     if (studentRoom && studentRoom.building &&
@@ -123,7 +124,10 @@ const getPendingRequests = async (req, res) => {
         } else {
             // Not a proctor or no building assigned - return all (for admin)
             requests = await ExitClearance.find({ status: 'Pending' })
-                .populate('student', 'fullName studentID gender')
+                .populate({
+                    path: 'student',
+                    populate: { path: 'user', select: 'name userID gender' }
+                })
                 .sort({ createdAt: 1 });
         }
 
@@ -175,8 +179,8 @@ const approveRequest = async (req, res) => {
 
         // USE STRICT JSON FORMAT AS REQUESTED (for scanning directly into card)
         const qrData = {
-            name: student?.fullName || 'N/A',
-            ugr: student?.studentID || 'N/A',
+            name: student.user?.name || 'N/A',
+            ugr: student.user?.userID || 'N/A',
             block: studentRoomWithBuilding?.building?.name || 'N/A',
             room: studentRoomWithBuilding?.roomNumber || 'N/A',
             items: clearance.items.map(item => `${item.name} (x${item.quantity})`),
@@ -242,7 +246,7 @@ const rejectRequest = async (req, res) => {
 
         await clearance.save();
 
-        const student = await Student.findById(clearance.student).select('user studentID fullName');
+        const student = await Student.findById(clearance.student).populate('user');
         if (student?.user) {
             await createNotification({
                 user: student.user,
@@ -289,7 +293,10 @@ const verifyQR = async (req, res) => {
 
         if (!id) return res.status(400).json({ message: 'Could not decode QR payload. Invalid format.' });
 
-        const clearance = await ExitClearance.findById(id).populate('student', 'fullName studentID');
+        const clearance = await ExitClearance.findById(id).populate({
+            path: 'student',
+            populate: { path: 'user', select: 'name userID' }
+        });
 
         if (!clearance) {
             return res.status(404).json({ message: 'Clearance record not found' });

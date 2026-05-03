@@ -406,9 +406,7 @@ const submitApplication = async (req, res) => {
       }
     }
 
-    const nameMatches =
-      nameLikelyOnId(student.fullName, frontText) ||
-      nameLikelyOnId(student?.user?.name, frontText);
+    const nameMatches = nameLikelyOnId(student.user?.name, frontText);
     if (!nameMatches) {
       return res.status(400).json({
         success: false,

@@ -30,12 +30,12 @@ const initializeChapaPayment = async (student, amount = 1500) => {
   const payload = {
     amount: amount.toString(),
     currency: "ETB",
-    email: student.email || "student@aau.edu.et",
-    first_name: student.fullName.split(' ')[0],
-    last_name: student.fullName.split(' ').slice(-1)[0] || "Student",
+    email: student.user?.email || student.email || "student@aau.edu.et",
+    first_name: (student.user?.name || student.fullName || "Student").split(' ')[0],
+    last_name: (student.user?.name || student.fullName || "User").split(' ').slice(-1)[0] || "Student",
     tx_ref: tx_ref,
     title: "AAU Dormitory Fee",
-    description: `Dorm fee for ${student.fullName}`,
+    description: `Dorm fee for ${student.user?.name || student.fullName || 'Student'}`,
     callback_url: buildCallbackUrl(),
     return_url: buildPlacementReturnUrl(),
   };

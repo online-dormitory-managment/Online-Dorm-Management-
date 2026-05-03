@@ -87,6 +87,10 @@ const adminDormApi = {
     const res = await api.put('/admin-dorm/global-application-config', data);
     return res.data;
   },
+  sendGlobalAnnouncement: async (message) => {
+    const res = await api.post('/admin-dorm/global-announcement', { message });
+    return res.data;
+  },
 };
 
 export default adminDormApi;

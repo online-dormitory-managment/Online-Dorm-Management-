@@ -151,7 +151,7 @@ export default function StudentDetail() {
           <div className="relative flex-shrink-0">
             <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center">
               <span className="text-3xl font-bold text-slate-600">
-                {student.fullName
+                {(student.user?.name || student.fullName || 'NN')
                   .split(' ')
                   .map((n) => n[0])
                   .join('')
@@ -163,7 +163,7 @@ export default function StudentDetail() {
           <div className="flex-1">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-3">{student.fullName}</h1>
+                <h1 className="text-2xl font-bold text-slate-900 mb-3">{student.user?.name || student.fullName || 'No Name'}</h1>
                 <div className="flex items-center gap-2 mb-3">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                     application.status === 'Assigned' ? 'bg-emerald-100 text-emerald-700' :
@@ -178,7 +178,7 @@ export default function StudentDetail() {
                     </span>
                 </div>
                   <div className="space-y-1">
-                  <p className="text-sm text-slate-600">ID: {student.studentID}</p>
+                  <p className="text-sm text-slate-600">ID: {student.user?.userID || student.studentID || 'N/A'}</p>
                   <p className="text-sm text-slate-600">Department: {student.department}</p>
                   <p className="text-sm text-slate-600">Year: {student.year || application.yearOfStudy}</p>
                   <p className="text-sm text-slate-500">Applied {new Date(application.createdAt).toLocaleDateString()}</p>
@@ -199,11 +199,11 @@ export default function StudentDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-slate-500 mb-1">Full Name</p>
-                <p className="text-sm font-semibold text-slate-900">{student.fullName}</p>
+                <p className="text-sm font-semibold text-slate-900">{student.user?.name || student.fullName || 'No Name'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 mb-1">Student ID</p>
-                <p className="text-sm font-semibold text-slate-900">{student.studentID}</p>
+                <p className="text-sm font-semibold text-slate-900">{student.user?.userID || student.studentID || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 mb-1">Email Address</p>
@@ -211,7 +211,7 @@ export default function StudentDetail() {
               </div>
               <div>
                 <p className="text-xs text-slate-500 mb-1">Gender</p>
-                <p className="text-sm font-semibold text-slate-900">{student.gender || application.gender || 'N/A'}</p>
+                <p className="text-sm font-semibold text-slate-900">{student.user?.gender || student.gender || application.gender || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Department</p>
