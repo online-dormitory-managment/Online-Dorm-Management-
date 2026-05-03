@@ -850,7 +850,7 @@ export default function PlacementRequestSimple() {
                         <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-emerald-100 mb-4 relative z-10">
                           <p className="text-xs text-emerald-800 leading-relaxed font-medium">
                             Thank you! Your payment has been verified. 
-                            <strong> Your room assignment is being finalized automatically. You will see your room details here shortly.</strong>
+                            <strong> Please check your room details below and get your room key from the proctor's office in your campus.</strong>
                           </p>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
