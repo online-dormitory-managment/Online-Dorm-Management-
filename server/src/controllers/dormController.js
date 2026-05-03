@@ -608,6 +608,14 @@ const getMyApplication = async (req, res) => {
             // NO ROOM FOUND
             application.status = 'Pending';
             application.scheduledReleaseAt = null;
+            if (isSelfSponsoredStudent(student)) {
+              try {
+                const paymentInfo = await initializeChapaPayment(student, 3000);
+                application.chapaTxRef = paymentInfo?.tx_ref || null;
+              } catch (pe) {
+                console.error('Chapa init error in queue polling:', pe.message);
+              }
+            }
             await Notification.create({
                user: req.user._id,
                type: 'DormApplication',
@@ -731,7 +739,7 @@ const verifyChapaPayment = async (req, res) => {
         user: application.student.user,
         type: 'Payment',
         title: '💰 Payment Verified',
-        message: `Your payment of 1,500 ETB has been verified. ${application.status === 'Assigned' ? 'Your room has been assigned!' : 'Your application is being finalized.'}`,
+        message: `Your payment of 3,000 ETB has been verified. ${application.status === 'Assigned' ? 'Your room has been assigned!' : 'Your application is being finalized.'}`,
         isSent: true
       });
     } catch (notifErr) {

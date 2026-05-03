@@ -999,7 +999,7 @@ export default function PlacementRequestSimple() {
               </div>
             )}
             
-            {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Assigned' || isPaid) && (
+            {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Pending' || existingApp?.status === 'Assigned' || isPaid) && (
               <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
@@ -1036,10 +1036,10 @@ export default function PlacementRequestSimple() {
                     </div>
                     <p className="text-sm text-slate-600 mt-3">
                       {isPaid 
-                        ? 'Your payment of 1,500 ETB has been successfully verified via the Chapa Gateway.' 
+                        ? 'Your payment of 3,000 ETB has been successfully verified via the Chapa Gateway.' 
                         : paymentStatus === 'verifying'
                         ? 'Please wait, we are confirming your payment with the server...'
-                        : 'Self-sponsored students are required to pay 1,500 ETB for dorm placement.'}
+                        : 'Self-sponsored students are required to pay 3,000 ETB for dorm placement.'}
                     </p>
                   </div>
                 </div>
