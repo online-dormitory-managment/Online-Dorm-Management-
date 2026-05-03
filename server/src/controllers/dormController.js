@@ -87,7 +87,7 @@ function detectCityCategoryFromBackText(backText) {
 async function getEffectiveWaitMsForCityCategory(cityCategory, campus) {
   if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
 
-  const defaultMs = cityCategory === 'shager' ? 1 * 60 * 1000 : ADDIS_WAIT_MS;
+  const defaultMs = cityCategory === 'shager' ? 3 * 60 * 1000 : ADDIS_WAIT_MS;
   const config = await DormApplicationConfig.findOne({ key: 'global' });
   if (!config?.isOpen || !config?.openedAt) return defaultMs;
 
