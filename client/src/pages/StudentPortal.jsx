@@ -197,7 +197,13 @@ function StudentPortal() {
   if (['Student', 'Vendor', 'EventPoster'].includes(user?.role)) {
     if (user?.role !== 'EventPoster') {
       enhancedActions.push(
-        { title: 'Apply for Event Posting', icon: 'FaCalendarPlus', link: '/apply-event-poster', color: 'bg-rose-50 text-rose-600' }
+        { title: 'Apply for Event Posting', icon: 'FaCalendarPlus', link: '/apply-event-poster', color: 'bg-rose-50 text-rose-600', description: 'Get permission to post campus events' }
+      );
+    }
+    // Always show Dorm Placement for students if they don't have a room yet
+    if (user?.role === 'Student' && !student?.roomNumber) {
+      enhancedActions.push(
+        { title: 'Dorm Placement', icon: 'FaBuilding', link: '/placement-request', color: 'bg-blue-50 text-blue-600', description: 'Apply for housing & pay fees' }
       );
     }
   }
