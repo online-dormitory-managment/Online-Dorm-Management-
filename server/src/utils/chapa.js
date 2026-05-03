@@ -24,7 +24,7 @@ function buildCallbackUrl() {
   return `${backend}/api/payment/webhook`;
 }
 
-const initializeChapaPayment = async (student, amount = 1500) => {
+const initializeChapaPayment = async (student, amount = 3000) => {
   const tx_ref = `dorm_${Date.now()}`;
 
   const payload = {

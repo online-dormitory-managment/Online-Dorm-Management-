@@ -353,8 +353,13 @@ export default function PlacementRequestSimple() {
             }
             
             // Clear search params and fallback to prevent duplicate triggers
-            toast.success('Payment verified!', { id: verifToast });
+            toast.success('Payment verified! Redirecting to dashboard...', { id: verifToast });
             localStorage.removeItem('pending_chapa_tx_ref');
+            
+            // Redirect after a short delay
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 2000);
             setSearchParams({}, { replace: true });
             // Ensure we stay on the dorm placement page after payment.
             if (window.location.pathname !== '/placement-request') {
@@ -1109,7 +1114,7 @@ export default function PlacementRequestSimple() {
                     <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between group hover:bg-blue-50/30 transition-all">
                       <div>
                         <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1">Total Amount</p>
-                        <p className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">1,500.00 <span className="text-sm font-bold opacity-50">ETB</span></p>
+                        <p className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">3,000.00 <span className="text-sm font-bold opacity-50">ETB</span></p>
                       </div>
                       <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
                         <FaUniversity className="w-5 h-5 text-blue-500" />

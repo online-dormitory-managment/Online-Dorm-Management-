@@ -448,7 +448,7 @@ const submitApplication = async (req, res) => {
           status = 'PaymentPending';
           paymentStatus = 'Pending';
           try {
-            paymentInfo = await initializeChapaPayment(student, 1500);
+            paymentInfo = await initializeChapaPayment(student, 3000);
           } catch (e) {
             console.error('Chapa init failed:', e.message);
           }
@@ -578,7 +578,7 @@ const getMyApplication = async (req, res) => {
                 application.scheduledReleaseAt = null;
                 // Initialize Chapa now that we confirmed a room exists
                 try {
-                   const paymentInfo = await initializeChapaPayment(student, 1500);
+                   const paymentInfo = await initializeChapaPayment(student, 3000);
                    application.chapaTxRef = paymentInfo?.tx_ref || null;
                 } catch (pe) {
                    console.error('Chapa init error in polling:', pe.message);

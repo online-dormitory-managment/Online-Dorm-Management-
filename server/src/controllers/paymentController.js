@@ -168,7 +168,7 @@ const verifyPayment = async (req, res) => {
       const mockResponse = {
         data: {
           status: 'success',
-          data: { status: 'success', amount: 1500, currency: 'ETB', tx_ref }
+          data: { status: 'success', amount: 3000, currency: 'ETB', tx_ref }
         }
       };
       return await finalizeVerification(mockResponse.data, req, res);
