@@ -805,7 +805,7 @@ export default function PlacementRequestSimple() {
             </div>
           )}
 
-          {(!existingApp || forceShowForm) && isDormOpen && openedAtDate && Date.now() < openedAtDate.getTime() && (
+          {!existingApp && isDormOpen && openedAtDate && Date.now() < openedAtDate.getTime() && (
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-8 text-center shadow-sm">
               <FaCalendarAlt className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-bounce" />
               <h2 className="text-2xl font-bold text-blue-800 mb-2">Applications Not Yet Open</h2>
