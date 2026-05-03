@@ -87,14 +87,8 @@ function detectCityCategoryFromBackText(backText) {
 
 async function getEffectiveWaitMsForCityCategory(cityCategory, campus) {
   if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
-
-  const defaultMs = cityCategory === 'shager' ? 3 * 60 * 1000 : ADDIS_WAIT_MS;
-  const config = await DormApplicationConfig.findOne({ key: 'global' });
-  if (!config?.isOpen || !config?.openedAt) return defaultMs;
-
-  const requiredMs = cityCategory === 'addis' ? 3 * 60 * 1000 : defaultMs;
-  const elapsed = Date.now() - new Date(config.openedAt).getTime();
-  return Math.max(0, requiredMs - elapsed);
+  // USER REQUIREMENT: Fixed 3 minutes for both Addis Ababa and Shager
+  return 3 * 60 * 1000;
 }
 const { getCampusForDepartment } = require('../utils/campus');
 const {
@@ -535,10 +529,15 @@ const submitApplication = async (req, res) => {
       message = `Success! Room ${application.assignedRoom?.roomNumber || ''} has been assigned.`;
     }
 
+    const appObj = application.toObject();
+    if (application.status === 'Waiting' && application.scheduledReleaseAt) {
+      appObj.remainingMs = Math.max(0, new Date(application.scheduledReleaseAt).getTime() - Date.now());
+    }
+
     return res.json({
       success: true,
       message,
-      application,
+      application: appObj,
       chapaPaymentUrl,
       deploymentVersion: '2026-04-26-v6-OBJECT-FIX'
     });
@@ -626,9 +625,14 @@ const getMyApplication = async (req, res) => {
       }
     }
 
+    const appObj = application.toObject();
+    if (application.status === 'Waiting' && application.scheduledReleaseAt) {
+      appObj.remainingMs = Math.max(0, new Date(application.scheduledReleaseAt).getTime() - Date.now());
+    }
+
     return res.json({ 
       success: true, 
-      application, 
+      application: appObj, 
       deploymentVersion: '2026-04-26-v6-OBJECT-FIX' 
     });
   } catch (err) {

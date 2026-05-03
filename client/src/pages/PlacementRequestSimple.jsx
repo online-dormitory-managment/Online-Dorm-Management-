@@ -271,12 +271,22 @@ export default function PlacementRequestSimple() {
 
   // Effect for Timer Countdown (Addis Wait)
   useEffect(() => {
-    if (existingApp?.status === 'Waiting' && existingApp?.scheduledReleaseAt) {
+    if (existingApp?.status === 'Waiting') {
       let refreshInFlight = false;
+      // Use server-provided remainingMs if available, else fallback to local date calculation
+      let serverRemainingMs = existingApp.remainingMs || 0;
+      let startTime = Date.now();
+      
       const updateTimer = () => {
-        const target = new Date(existingApp.scheduledReleaseAt).getTime();
-        const now = new Date().getTime();
-        const diff = target - now;
+        const elapsed = Date.now() - startTime;
+        let diff = 0;
+        
+        if (existingApp.remainingMs) {
+          diff = serverRemainingMs - elapsed;
+        } else if (existingApp.scheduledReleaseAt) {
+          const target = new Date(existingApp.scheduledReleaseAt).getTime();
+          diff = target - Date.now();
+        }
 
         if (diff <= 0) {
           setTimeLeft(null);
@@ -288,8 +298,8 @@ export default function PlacementRequestSimple() {
           const mins = Math.floor(diff / 60000);
           const secs = Math.floor((diff % 60000) / 1000);
           setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
-          // Poll every 5 seconds for faster transition
-          if (secs % 5 === 0 && !refreshInFlight) {
+          // Poll every 10 seconds for state transitions
+          if (secs % 10 === 0 && !refreshInFlight) {
             refreshInFlight = true;
             dormApi.getMyApplication().then(setExistingApp).catch(() => {}).finally(() => { refreshInFlight = false; });
           }
