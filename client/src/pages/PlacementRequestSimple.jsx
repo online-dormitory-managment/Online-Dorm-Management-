@@ -29,7 +29,8 @@ import {
   FaTimes,
   FaMobileAlt,
   FaLock,
-  FaArrowLeft
+  FaArrowLeft,
+  FaHourglassHalf
 } from 'react-icons/fa';
 
 /** Outer Addis sub-cities: no extra letter (aligned with server `fydaAddressMatch`). */
