@@ -787,9 +787,6 @@ export default function PlacementRequestSimple() {
                 </div>
               )}
 
-                </div>
-              )}
-
               {/* PLACEMENT FEE SECTION - MOVED HERE TO BE VISIBLE AFTER SUBMISSION */}
               {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Pending' || existingApp?.status === 'Assigned' || isPaid) && (
                 <div className="mt-8 pt-8 border-t border-slate-100">
