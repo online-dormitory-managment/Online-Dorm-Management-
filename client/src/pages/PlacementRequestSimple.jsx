@@ -273,7 +273,6 @@ export default function PlacementRequestSimple() {
   useEffect(() => {
     if (existingApp?.status === 'Waiting' && existingApp?.scheduledReleaseAt) {
       let refreshInFlight = false;
-      
       const updateTimer = () => {
         const target = new Date(existingApp.scheduledReleaseAt).getTime();
         const now = new Date().getTime();
@@ -289,14 +288,15 @@ export default function PlacementRequestSimple() {
           const mins = Math.floor(diff / 60000);
           const secs = Math.floor((diff % 60000) / 1000);
           setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
-          if (secs % 15 === 0 && !refreshInFlight) {
+          // Poll every 5 seconds for faster transition
+          if (secs % 5 === 0 && !refreshInFlight) {
             refreshInFlight = true;
             dormApi.getMyApplication().then(setExistingApp).catch(() => {}).finally(() => { refreshInFlight = false; });
           }
         }
       };
-
-      updateTimer(); // Initial call
+      
+      updateTimer();
       const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
     } else {
@@ -468,15 +468,23 @@ export default function PlacementRequestSimple() {
     }
   };
 
-  const handleFileChange = (e, setter, previewKey) => {
-    const file = e.target.files?.[0] || null;
-    setter(file);
-    
-    if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setPreviews(prev => ({ ...prev, [previewKey]: url }));
-    } else {
-      setPreviews(prev => ({ ...prev, [previewKey]: null }));
+  const handleFileChange = async (e, setFile, key) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSubmitting(true);
+      try {
+        const compressed = file.type.startsWith('image/') ? await compressImage(file) : file;
+        setFile(compressed);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviews((prev) => ({ ...prev, [key]: reader.result }));
+        };
+        reader.readAsDataURL(compressed);
+      } catch (err) {
+        toast.error('Failed to process image');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 

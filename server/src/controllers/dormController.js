@@ -18,17 +18,18 @@ async function getOcrScheduler() {
     );
 
     try {
-      console.log('🏗️  Initializing OCR Singleton Worker...');
+      console.log('🏗️  Initializing OCR Singleton Scheduler (3 Workers)...');
       const tempScheduler = createScheduler();
       
-      const workerPromise = (async () => {
-        const worker = await createWorker('eng');
-        tempScheduler.addWorker(worker);
-        return tempScheduler;
-      })();
-
-      ocrScheduler = await Promise.race([workerPromise, initTimeout]);
-      console.log('✅ OCR Singleton Scheduler Ready');
+      const p1 = createWorker('eng');
+      const p2 = createWorker('eng');
+      const p3 = createWorker('eng');
+      
+      const workers = await Promise.all([p1, p2, p3]);
+      workers.forEach(w => tempScheduler.addWorker(w));
+      
+      ocrScheduler = tempScheduler;
+      console.log('✅ OCR Singleton Scheduler Ready with 3 Workers');
       return ocrScheduler;
     } catch (err) {
       console.warn('⚠️ OCR Scheduler initialization failed/timed out:', err.message);
