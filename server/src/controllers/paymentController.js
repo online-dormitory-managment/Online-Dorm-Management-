@@ -21,14 +21,14 @@ function buildPlacementReturnUrl() {
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
   if (explicit) return explicit;
 
-  const frontend = (process.env.FRONTEND_URL || 'https://online-dormitory-managment.vercel.app').trim().replace(/\/+$/, '');
+  const frontend = (process.env.FRONTEND_URL || 'https://aauonlinedormmanegement.vercel.app').trim().replace(/\/+$/, '');
   
   // If we're on localhost and FRONTEND_URL isn't set, default to common vite port
   if (!process.env.FRONTEND_URL && !process.env.VERCEL) {
-    return `http://localhost:5173/placement-request?payment=success`;
+    return `http://localhost:5173/student-portal?payment=success`;
   }
 
-  return `${frontend}/placement-request?payment=success`;
+  return `${frontend}/student-portal?payment=success`;
 }
 
 const logToFile = (msg) => {
@@ -255,7 +255,7 @@ const finalizeVerification = async (chapaData, req, res) => {
             user: student.user._id,
             type: 'Payment',
             title: 'Payment Verified',
-            message: `Your payment of 1,500 ETB for dorm placement has been verified successfully.`,
+            message: `Your payment of 3,000 ETB for dorm placement has been verified successfully.`,
             isSent: true
           });
           
